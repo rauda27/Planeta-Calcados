@@ -108,9 +108,19 @@ export const Footer: React.FC = () => {
 
         <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[11px]">
           <p>© 2026 Planeta Calçados QB - Quatro Barras, PR. Todos os direitos reservados.</p>
-          <p className="flex items-center gap-1">
-            Desenvolvido com <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> para Planeta Calçados QB
-          </p>
+          <div className="flex items-center gap-4">
+            <a
+              href="/admin"
+              className="hover:text-brand-gold flex items-center gap-1 transition-colors text-slate-400"
+              title="Acesso Restrito para Funcionários e Proprietários"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Acesso Lojista / ERP</span>
+            </a>
+            <p className="flex items-center gap-1">
+              Desenvolvido com <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> para Planeta Calçados QB
+            </p>
+          </div>
         </div>
       </div>
     </footer>

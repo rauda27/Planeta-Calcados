@@ -42,6 +42,7 @@ interface StoreContextType {
 
   // System Clean / Delivery Action
   clearERPTransactionsForDelivery: () => void;
+  clearAllDataFromDatabase: () => void;
 
   // Cart actions
   addToCart: (product: Product, selectedSize: string | number, selectedColor: string, quantity?: number) => void;
@@ -705,9 +706,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify([]));
         localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify([]));
       }
-      showToast('🧹 ERP limpo com sucesso.', 'success');
+      showToast('🧹 Vendas e boletos limpos com sucesso.', 'success');
     } catch (e) {
       console.error('Error clearing ERP data:', e);
+    }
+  };
+
+  const clearAllDataFromDatabase = () => {
+    try {
+      const prodsToDel = [...products];
+      const salesToDel = [...sales];
+      const billsToDel = [...bills];
+
+      setProducts([]);
+      setSales([]);
+      setBills([]);
+      setCart([]);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify([]));
+      }
+
+      if (db && isFirebaseConfigured) {
+        prodsToDel.forEach(p => deleteDoc(doc(db, 'products', p.id)).catch(console.error));
+        salesToDel.forEach(s => deleteDoc(doc(db, 'sales', s.id)).catch(console.error));
+        billsToDel.forEach(b => deleteDoc(doc(db, 'bills', b.id)).catch(console.error));
+      }
+
+      showToast('🧹 Sistema 100% zerado e pronto para novos cadastros!', 'success');
+    } catch (e) {
+      console.error('Error clearing all database data:', e);
     }
   };
 
@@ -788,6 +819,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         markPromissoryAsPaid,
         cancelSale,
         clearERPTransactionsForDelivery,
+        clearAllDataFromDatabase,
         addToCart,
         removeFromCart,
         updateCartQuantity,

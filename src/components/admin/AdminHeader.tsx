@@ -1,19 +1,29 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Store, Package, CreditCard, ShoppingCart, Cloud, CloudOff } from 'lucide-react';
+import { Store, Package, CreditCard, ShoppingCart, Cloud, CloudOff, Lock, Key, LogOut, Crown, UserCheck } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Button } from '../ui/Button';
 import { StoreLogo } from '../ui/StoreLogo';
+import { getStoredAuthSession, logoutAdminSession, AuthRole } from './AdminAuthGuard';
 
 interface AdminHeaderProps {
   activeTab: 'inventory' | 'financial' | 'sales';
   onTabChange: (tab: 'inventory' | 'financial' | 'sales') => void;
+  onOpenSecurityModal: () => void;
 }
 
-export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => {
+export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange, onOpenSecurityModal }) => {
   const { products, bills, sales, isCloudConnected } = useStore();
+  const [role, setRole] = useState<AuthRole>(null);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    const session = getStoredAuthSession();
+    setRole(session.role);
+    setUserName(session.userName);
+  }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayBills = bills.filter(b => b.dueDate === todayStr && b.status === 'Pendente');
@@ -29,13 +39,29 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
         {/* Brand & ERP Title + Cloud Status Badge */}
         <div className="flex items-center gap-3">
           <StoreLogo variant="light" size="sm" />
-          <span className="hidden sm:inline text-xs font-bold bg-slate-800 px-2.5 py-1 rounded-lg text-brand-gold border border-slate-700">
-            Painel ERP
-          </span>
+          
+          <div className="flex items-center gap-1.5">
+            <span className="hidden sm:inline text-xs font-bold bg-slate-800 px-2.5 py-1 rounded-lg text-brand-gold border border-slate-700">
+              Painel ERP
+            </span>
+
+            {/* Role Badge */}
+            {role === 'owner' ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-950/80 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-lg" title="Acesso Total de Proprietário">
+                <Crown className="w-3 h-3 text-amber-400" />
+                <span>Dono</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-950/80 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded-lg" title="Acesso Operacional de Colaborador">
+                <UserCheck className="w-3 h-3 text-blue-400" />
+                <span>Colaborador</span>
+              </span>
+            )}
+          </div>
 
           {/* Cloud Sync Status */}
           <div
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors ${
               isCloudConnected
                 ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
                 : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
@@ -48,13 +74,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
           >
             {isCloudConnected ? (
               <>
-                <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Nuvem Conectada</span>
+                <Cloud className="w-3 h-3 text-emerald-400" />
+                <span className="hidden lg:inline">Nuvem Conectada</span>
               </>
             ) : (
               <>
-                <CloudOff className="w-3.5 h-3.5 text-amber-400" />
-                <span>Modo Local</span>
+                <CloudOff className="w-3 h-3 text-amber-400" />
+                <span className="hidden lg:inline">Local</span>
               </>
             )}
           </div>
@@ -98,6 +124,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
             )}
           </button>
 
+          {/* Only Owner or Full Staff can access Financials */}
           <button
             type="button"
             onClick={() => onTabChange('financial')}
@@ -117,18 +144,47 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
           </button>
         </div>
 
-        {/* Back to Public Store Button */}
-        <Link href="/">
+        {/* Action Buttons: Security Settings, Store & Logout */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Security / Password Management */}
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white shrink-0"
-            icon={<Store className="w-4 h-4 text-brand-gold" />}
+            onClick={onOpenSecurityModal}
+            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white shrink-0 text-xs px-2.5"
+            title="Alterar Senhas e PIN de Acesso"
+            icon={<Key className="w-3.5 h-3.5 text-brand-gold" />}
           >
-            Ir para a Loja
+            <span className="hidden sm:inline">Senhas</span>
           </Button>
-        </Link>
+
+          {/* Back to Public Store Button */}
+          <Link href="/">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white shrink-0 text-xs px-2.5"
+              icon={<Store className="w-3.5 h-3.5 text-brand-gold" />}
+            >
+              <span className="hidden sm:inline">Loja</span>
+            </Button>
+          </Link>
+
+          {/* Logout / Lock Session */}
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={logoutAdminSession}
+            className="bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-200 shrink-0 text-xs px-2.5"
+            title="Encerrar Sessão e Bloquear Painel"
+            icon={<LogOut className="w-3.5 h-3.5" />}
+          >
+            <span className="hidden sm:inline">Sair</span>
+          </Button>
+        </div>
       </div>
     </header>
   );

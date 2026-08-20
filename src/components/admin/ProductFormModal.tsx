@@ -16,16 +16,16 @@ interface ProductFormModalProps {
 }
 
 const DEFAULT_FISCAL_DATA: FiscalData = {
-  ncm: '6403.99.90',
-  cest: '28.057.00',
+  ncm: '',
+  cest: '',
   origin: '0 - Nacional',
   cfop: '5102',
   csosn: '102',
-  icmsRate: 18.0,
-  pisRate: 1.65,
-  cofinsRate: 7.6,
-  nfeKey: '35260812345678000199550010000082301987654321',
-  supplierCnpj: '61.033.123/0001-45',
+  icmsRate: 0,
+  pisRate: 0,
+  cofinsRate: 0,
+  nfeKey: '',
+  supplierCnpj: '',
 };
 
 // Department Presets for Sizes & Volumes
@@ -51,7 +51,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const { addProduct, updateProduct } = useStore();
   const [activeTab, setActiveTab] = useState<string>('geral');
 
-  // Form State - Tab 1: General Info
+  // Form State - Tab 1: General Info (100% CLEAN & ZEROED OUT)
   const [department, setDepartment] = useState<Department>('Calçados');
   const [sku, setSku] = useState('');
   const [mainEan, setMainEan] = useState('');
@@ -59,76 +59,69 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [gender, setGender] = useState<ShoeGender>('Feminino');
-  const [category, setCategory] = useState<ProductCategory>('Scarpin');
-  const [collection, setCollection] = useState('Primavera/Verão 2026');
-  const [material, setMaterial] = useState('Sintético Premium');
-  const [soleType, setSoleType] = useState('Borracha Antiderrapante');
+  const [category, setCategory] = useState<ProductCategory>('Tênis');
+  const [collection, setCollection] = useState('');
+  const [material, setMaterial] = useState('');
+  const [soleType, setSoleType] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
 
-  // Form State - Tab 2: Pricing
-  const [costPrice, setCostPrice] = useState<number>(50);
-  const [freightExpenses, setFreightExpenses] = useState<number>(4);
-  const [markupPercentage, setMarkupPercentage] = useState<number>(120);
-  const [salePrice, setSalePrice] = useState<number>(118.80);
+  // Form State - Tab 2: Pricing (Zeroed)
+  const [costPrice, setCostPrice] = useState<number>(0);
+  const [freightExpenses, setFreightExpenses] = useState<number>(0);
+  const [markupPercentage, setMarkupPercentage] = useState<number>(100);
+  const [salePrice, setSalePrice] = useState<number>(0);
   const [promoPrice, setPromoPrice] = useState<number | undefined>(undefined);
 
-  // Form State - Tab 3: Grid Matrix
+  // Form State - Tab 3: Grid Matrix (Empty by default)
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   // Form State - Tab 4: Fiscal Data
   const [fiscalData, setFiscalData] = useState<FiscalData>(DEFAULT_FISCAL_DATA);
 
-  // Populate form state when editing or creating
+  // Populate form state when editing or resetting for new entry
   useEffect(() => {
     if (editingProduct) {
       setDepartment(editingProduct.department || 'Calçados');
-      setSku(editingProduct.sku);
-      setMainEan(editingProduct.mainEan);
-      setName(editingProduct.name);
-      setBrand(editingProduct.brand);
-      setModel(editingProduct.model);
-      setGender(editingProduct.gender);
-      setCategory(editingProduct.category);
-      setCollection(editingProduct.collection);
-      setMaterial(editingProduct.material);
-      setSoleType(editingProduct.soleType || 'N/A');
+      setSku(editingProduct.sku || '');
+      setMainEan(editingProduct.mainEan || '');
+      setName(editingProduct.name || '');
+      setBrand(editingProduct.brand || '');
+      setModel(editingProduct.model || '');
+      setGender(editingProduct.gender || 'Feminino');
+      setCategory(editingProduct.category || 'Tênis');
+      setCollection(editingProduct.collection || '');
+      setMaterial(editingProduct.material || '');
+      setSoleType(editingProduct.soleType || '');
       setImages(editingProduct.images || []);
-      setCostPrice(editingProduct.costPrice);
-      setFreightExpenses(editingProduct.freightExpenses);
-      setMarkupPercentage(editingProduct.markupPercentage);
-      setSalePrice(editingProduct.salePrice);
+      setCostPrice(editingProduct.costPrice || 0);
+      setFreightExpenses(editingProduct.freightExpenses || 0);
+      setMarkupPercentage(editingProduct.markupPercentage || 100);
+      setSalePrice(editingProduct.salePrice || 0);
       setPromoPrice(editingProduct.promoPrice);
       setVariants(editingProduct.variants || []);
       setFiscalData(editingProduct.fiscalData || DEFAULT_FISCAL_DATA);
     } else {
-      // New product defaults
-      const initialDept: Department = 'Calçados';
-      setDepartment(initialDept);
+      // 100% Clean state for brand new product
+      setDepartment('Calçados');
       setSku(`SKU-${Math.floor(1000 + Math.random() * 9000)}`);
-      setMainEan(`789${Math.floor(1000000000 + Math.random() * 9000000000)}`);
+      setMainEan('');
       setName('');
-      setBrand('Vizzano');
+      setBrand('');
       setModel('');
       setGender('Feminino');
-      setCategory('Scarpin');
-      setCollection('Primavera/Verão 2026');
-      setMaterial('Pelica Sintética');
-      setSoleType('Borracha TR');
-      setImages(['https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80']);
-      setCostPrice(60);
-      setFreightExpenses(5);
-      setMarkupPercentage(115);
-      setSalePrice(139.75);
+      setCategory('Tênis');
+      setCollection('');
+      setMaterial('');
+      setSoleType('');
+      setImages([]);
+      setImageUrlInput('');
+      setCostPrice(0);
+      setFreightExpenses(0);
+      setMarkupPercentage(100);
+      setSalePrice(0);
       setPromoPrice(undefined);
-      
-      // Default initial matrix for Calçados
-      setVariants([
-        { id: 'v-init-1', color: 'Preta', colorHex: '#000000', size: 35, stock: 5, ean: '7891111111111', minStock: 2, shelfLocation: 'Corredor A - Prateleira 01' },
-        { id: 'v-init-2', color: 'Preta', colorHex: '#000000', size: 36, stock: 8, ean: '7891111111112', minStock: 3, shelfLocation: 'Corredor A - Prateleira 01' },
-        { id: 'v-init-3', color: 'Preta', colorHex: '#000000', size: 37, stock: 10, ean: '7891111111113', minStock: 3, shelfLocation: 'Corredor A - Prateleira 01' },
-        { id: 'v-init-4', color: 'Preta', colorHex: '#000000', size: 38, stock: 4, ean: '7891111111114', minStock: 2, shelfLocation: 'Corredor A - Prateleira 01' },
-      ]);
+      setVariants([]);
       setFiscalData(DEFAULT_FISCAL_DATA);
     }
     setActiveTab('geral');
@@ -137,7 +130,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   // Handle department switch
   const handleDepartmentChange = (newDept: Department) => {
     setDepartment(newDept);
-    // Automatically adjust category default
     const availableCats = DEPARTMENT_CATEGORIES[newDept];
     if (availableCats && availableCats.length > 0) {
       setCategory(availableCats[0]);
@@ -155,7 +147,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setCostPrice(cost);
     setFreightExpenses(freight);
     setMarkupPercentage(markup);
-    setSalePrice(calculateSalePrice(cost, freight, markup));
+    if (cost > 0) {
+      setSalePrice(calculateSalePrice(cost, freight, markup));
+    }
   };
 
   // Image helpers
@@ -179,13 +173,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
     const newVariant: ProductVariant = {
       id: `v-dyn-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      color: 'Preta',
+      color: 'Preto',
       colorHex: '#000000',
       size: defaultSize,
-      stock: 5,
-      ean: `789${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-      minStock: 2,
-      shelfLocation: 'Depósito Central',
+      stock: 1,
+      ean: '',
+      minStock: 1,
+      shelfLocation: '',
     };
     setVariants(prev => [...prev, newVariant]);
   };
@@ -197,12 +191,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     const newVariants: ProductVariant[] = sizeOptions.map(sz => ({
       id: `v-preset-${Date.now()}-${sz}-${Math.random().toString(36).substring(2, 5)}`,
       color: colorName,
-      colorHex: colorName.toLowerCase() === 'preta' ? '#000000' : colorName.toLowerCase() === 'branca' ? '#FFFFFF' : '#D4AF37',
+      colorHex: colorName.toLowerCase() === 'preto' || colorName.toLowerCase() === 'preta' ? '#000000' : colorName.toLowerCase() === 'branco' || colorName.toLowerCase() === 'branca' ? '#FFFFFF' : '#D4AF37',
       size: sz,
-      stock: 5,
-      ean: `789${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-      minStock: 2,
-      shelfLocation: 'Depósito Central',
+      stock: 1,
+      ean: '',
+      minStock: 1,
+      shelfLocation: '',
     }));
     setVariants(prev => [...prev, ...newVariants]);
   };
@@ -218,7 +212,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setVariants(prev => prev.filter(v => v.id !== id));
   };
 
-  // SUBMIT HANDLER - Only triggered by the final submit button!
+  // SUBMIT HANDLER
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -235,21 +229,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
 
     const payload = {
-      sku,
-      mainEan,
-      name,
-      brand,
-      model,
+      sku: sku.trim() || `SKU-${Date.now()}`,
+      mainEan: mainEan.trim() || undefined,
+      name: name.trim(),
+      brand: brand.trim() || 'Planeta Calçados',
+      model: model.trim() || name.trim(),
       department,
       gender,
       category,
-      collection,
-      material,
-      soleType: department === 'Calçados' ? soleType : undefined,
+      collection: collection.trim() || 'Geral',
+      material: material.trim() || 'Padrão',
+      soleType: department === 'Calçados' ? (soleType.trim() || undefined) : undefined,
       costPrice,
       freightExpenses,
       markupPercentage,
-      salePrice,
+      salePrice: salePrice > 0 ? salePrice : (costPrice + freightExpenses),
       promoPrice: promoPrice || undefined,
       images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80'],
       variants,
@@ -276,98 +270,38 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingProduct ? `Editar Produto: ${editingProduct.name}` : 'Cadastrar Novo Produto no ERP'}
-      subtitle="Defina departamento, variações de grade, precificação e tributos NFe"
+      title={editingProduct ? `Editar Produto: ${editingProduct.name}` : 'Cadastrar Novo Produto'}
+      subtitle="Preencha os dados do item, departamento, grade de tamanhos e preços"
       maxWidth="4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Tabs Bar with explicit type="button" */}
+        {/* Tabs Bar */}
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
         {/* TAB 1: DADOS GERAIS */}
         {activeTab === 'geral' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
-            {/* Department Selection */}
-            <div>
-              <label className="block text-xs font-extrabold text-slate-900 uppercase tracking-wider mb-2">
-                Selecione o Departamento do Produto *
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {(['Calçados', 'Roupas', 'Acessórios', 'Perfumes'] as Department[]).map(dept => {
-                  const isSelected = department === dept;
-                  return (
-                    <button
-                      key={dept}
-                      type="button"
-                      onClick={() => handleDepartmentChange(dept)}
-                      className={`p-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                        isSelected
-                          ? 'bg-brand-primary text-white border-brand-primary ring-2 ring-brand-gold/40 shadow-sm'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <span>{dept}</span>
-                      <span className={`text-[10px] font-normal ${isSelected ? 'text-brand-gold' : 'text-slate-400'}`}>
-                        {dept === 'Calçados' ? 'Grade 33-44' : dept === 'Roupas' ? 'Grade PP-XGG' : dept === 'Acessórios' ? 'Snapback/Único' : 'Frascos/ml'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-100 pt-4">
-              <Input
-                label="Nome do Produto *"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Ex: Camiseta Polo Premium / Scarpin Vizzano"
-                required
-              />
-              <Input
-                label="SKU Principal"
-                value={sku}
-                onChange={e => setSku(e.target.value)}
-                placeholder="SKU-8230"
-              />
-              <Input
-                label="Código EAN-13 Principal"
-                value={mainEan}
-                onChange={e => setMainEan(e.target.value)}
-                placeholder="7891234567890"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Marca *</label>
-                <input
-                  type="text"
-                  value={brand}
-                  onChange={e => setBrand(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-white"
-                  placeholder="Marca/Fabricante"
-                  required
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Departamento *</label>
+                <select
+                  value={department}
+                  onChange={e => handleDepartmentChange(e.target.value as Department)}
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm bg-white font-semibold text-slate-800"
+                >
+                  <option value="Calçados">Calçados (Sapatos, Tênis)</option>
+                  <option value="Roupas">Roupas / Vestuário</option>
+                  <option value="Acessórios">Acessórios / Bolsas</option>
+                  <option value="Perfumes">Perfumes / Cosméticos</option>
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Modelo</label>
-                <input
-                  type="text"
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-white"
-                  placeholder="Modelo/Edição"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Gênero</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Gênero / Público *</label>
                 <select
                   value={gender}
                   onChange={e => setGender(e.target.value as ShoeGender)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-white cursor-pointer"
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-800"
                 >
                   <option value="Feminino">Feminino</option>
                   <option value="Masculino">Masculino</option>
@@ -377,13 +311,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Categoria do Departamento</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Categoria *</label>
                 <select
                   value={category}
                   onChange={e => setCategory(e.target.value as ProductCategory)}
-                  className="w-full border border-slate-200 rounded-lg p-2 text-sm bg-white cursor-pointer"
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm bg-white text-slate-800"
                 >
-                  {DEPARTMENT_CATEGORIES[department]?.map(cat => (
+                  {(DEPARTMENT_CATEGORIES[department] || []).map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -391,310 +325,338 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <Input
+                  label="Nome do Produto *"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ex: Tênis Esportivo Casual Preto..."
+                  required
+                />
+              </div>
+              <Input
+                label="Código SKU *"
+                value={sku}
+                onChange={e => setSku(e.target.value)}
+                placeholder="Ex: SKU-1001"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Marca / Fabricante *"
+                value={brand}
+                onChange={e => setBrand(e.target.value)}
+                placeholder="Ex: Vizzano, Olympikus, Modare, Moleca..."
+              />
+              <Input
+                label="Modelo / Linha"
+                value={model}
+                onChange={e => setModel(e.target.value)}
+                placeholder="Ex: Air Comfort, Casual Urban..."
+              />
+              <Input
+                label="EAN / Código de Barras Principal"
+                value={mainEan}
+                onChange={e => setMainEan(e.target.value)}
+                placeholder="7890000000000"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
                 label="Coleção / Temporada"
                 value={collection}
                 onChange={e => setCollection(e.target.value)}
-                placeholder="Primavera/Verão 2026"
+                placeholder="Ex: Primavera/Verão, Inverno..."
               />
               <Input
                 label="Material Predominante"
                 value={material}
                 onChange={e => setMaterial(e.target.value)}
-                placeholder={department === 'Calçados' ? 'Pelica Sintética' : department === 'Roupas' ? 'Algodão 100%' : 'Material'}
+                placeholder="Ex: Sintético, Couro, Tecido Mesh..."
               />
               {department === 'Calçados' && (
                 <Input
                   label="Tipo de Solado"
                   value={soleType}
                   onChange={e => setSoleType(e.target.value)}
-                  placeholder="Borracha Antiderrapante TR"
+                  placeholder="Ex: Borracha TR, EVA Antiderrapante..."
                 />
               )}
             </div>
 
-            {/* Photos */}
-            <div className="border-t border-slate-100 pt-4">
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-                Fotos do Produto (URL)
-              </label>
-              <div className="flex gap-2 mb-3">
-                <Input
+            {/* Images Management */}
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
+              <label className="block text-xs font-semibold text-slate-700">Fotos do Produto (URLs de Imagem)</label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
                   value={imageUrlInput}
                   onChange={e => setImageUrlInput(e.target.value)}
-                  placeholder="Cole o link da imagem (HTTPS)..."
-                  className="flex-1"
+                  placeholder="Cole o link da imagem (Ex: https://...)"
+                  className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white"
                 />
-                <Button type="button" variant="secondary" onClick={handleAddImage}>
+                <button
+                  type="button"
+                  onClick={handleAddImage}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
+                >
                   Adicionar Foto
-                </Button>
+                </button>
               </div>
 
-              {/* Photos Preview */}
-              <div className="flex flex-wrap gap-3">
-                {images.map((url, idx) => (
-                  <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 group">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={(e) => handleRemoveImage(idx, e)}
-                      className="absolute top-1 right-1 bg-rose-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              {images.length > 0 && (
+                <div className="flex flex-wrap gap-3 pt-2">
+                  {images.map((img, idx) => (
+                    <div key={idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                      <img src={img} alt="preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveImage(idx, e)}
+                        className="absolute top-1 right-1 bg-rose-600 text-white p-1 rounded-full opacity-80 hover:opacity-100 cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* TAB 2: PRECIFICAÇÃO */}
         {activeTab === 'precificacao' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-950 flex items-center gap-3">
-              <Calculator className="w-6 h-6 text-brand-primary shrink-0" />
-              <div>
-                <strong className="block font-bold">Cálculo Automático do Preço de Venda</strong>
-                <span>Preço Venda = (Custo + Frete/Despesas) × (1 + Markup / 100)</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input
-                label="Preço de Custo (R$) *"
+                label="Preço de Custo (R$)"
                 type="number"
                 step="0.01"
                 value={costPrice}
                 onChange={e => handleCostOrMarkupChange(Number(e.target.value), freightExpenses, markupPercentage)}
-                required
+                placeholder="0.00"
               />
               <Input
-                label="Despesas / Frete (R$)"
+                label="Frete / Despesas por Par (R$)"
                 type="number"
                 step="0.01"
                 value={freightExpenses}
                 onChange={e => handleCostOrMarkupChange(costPrice, Number(e.target.value), markupPercentage)}
+                placeholder="0.00"
               />
               <Input
-                label="% Markup Desejado (%) *"
+                label="Margem Markup Desejada (%)"
                 type="number"
                 step="1"
                 value={markupPercentage}
                 onChange={e => handleCostOrMarkupChange(costPrice, freightExpenses, Number(e.target.value))}
-                required
+                placeholder="100"
               />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Preço de Venda Varejo (R$) (Calculado) *
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                <label className="block text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-1">
+                  Preço de Venda Final *
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                <div className="flex items-baseline gap-1 text-emerald-950 font-black text-xl">
+                  <span className="text-sm font-semibold">R$</span>
                   <input
                     type="number"
                     step="0.01"
                     value={salePrice}
                     onChange={e => setSalePrice(Number(e.target.value))}
-                    className="w-full bg-white border-2 border-brand-primary rounded-xl pl-9 pr-4 py-2.5 text-base font-extrabold text-brand-primary focus:outline-none"
+                    className="w-full bg-transparent font-black text-xl text-emerald-950 focus:outline-none"
+                    placeholder="0.00"
                     required
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">Lucro estimado: R$ {(salePrice - (costPrice + freightExpenses)).toFixed(2)} por unidade</p>
               </div>
+            </div>
 
+            <div className="p-4 bg-amber-50/60 border border-amber-200/80 rounded-xl flex items-center justify-between">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">
-                  Preço Promocional (Opcional) (R$)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={promoPrice || ''}
-                    onChange={e => setPromoPrice(e.target.value ? Number(e.target.value) : undefined)}
-                    placeholder="Ex: 99.90"
-                    className="w-full bg-white border border-amber-300 rounded-xl pl-9 pr-4 py-2.5 text-base font-bold text-amber-900 focus:outline-none"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">Exibido com destaque de oferta no catálogo público</p>
+                <h4 className="text-xs font-bold text-amber-900">Preço Promocional (Opcional)</h4>
+                <p className="text-[11px] text-amber-700">Se preenchido, exibirá uma etiqueta de promoção na vitrine pública.</p>
+              </div>
+              <div className="w-36">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={promoPrice || ''}
+                  onChange={e => setPromoPrice(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="Ex: 89.90"
+                  className="w-full border border-amber-300 rounded-lg px-3 py-2 text-xs bg-white text-slate-900"
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: MATRIZ DE GRADE ADAPTÁVEL */}
+        {/* TAB 3: MATRIZ DE GRADE DE TAMANHOS */}
         {activeTab === 'matriz' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-100 p-3 rounded-xl">
               <div>
-                <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-brand-primary" />
-                  Matriz de Grade — Departamento: <span className="text-brand-primary underline">{department}</span>
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Cadastre as variações por Cor + Tamanho/Volume específico do departamento
-                </p>
+                <h4 className="text-xs font-bold text-slate-900">Grade de Tamanhos & Cores</h4>
+                <p className="text-[11px] text-slate-500">Defina os tamanhos, quantidades em estoque e local físico na loja.</p>
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button
+              <div className="flex gap-2">
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => handleAddPresetColorGrid('Preta', e)}
+                  onClick={(e) => handleAddPresetColorGrid('Preto', e)}
+                  className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-50 cursor-pointer"
                 >
-                  + Grade Preta
-                </Button>
-                <Button
+                  + Grade Completa (Preto)
+                </button>
+                <button
                   type="button"
-                  variant="primary"
-                  size="sm"
                   onClick={(e) => handleAddVariantRow(e)}
-                  icon={<Plus className="w-3.5 h-3.5" />}
+                  className="px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-bold hover:bg-brand-primary/90 cursor-pointer"
                 >
-                  Adicionar Linha
-                </Button>
+                  + Adicionar Linha
+                </button>
               </div>
             </div>
 
-            {/* Matrix Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-72">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10">
-                  <tr>
-                    <th className="p-2.5">Cor / Variação</th>
-                    <th className="p-2.5">Tamanho / Volume ({department})</th>
-                    <th className="p-2.5">Estoque Atual</th>
-                    <th className="p-2.5">Estoque Mínimo</th>
-                    <th className="p-2.5">EAN Individual</th>
-                    <th className="p-2.5">Prateleira / Depósito</th>
-                    <th className="p-2.5 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {variants.length === 0 ? (
+            {variants.length === 0 ? (
+              <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
+                <Boxes className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-xs text-slate-500 font-medium">Nenhuma numeração cadastrada ainda.</p>
+                <button
+                  type="button"
+                  onClick={(e) => handleAddVariantRow(e)}
+                  className="px-4 py-2 bg-brand-primary text-white text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  + Adicionar Primeira Numeração
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[10px]">
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-400">
-                        Nenhuma variação na grade. Clique no botão "Adicionar Linha" para iniciar.
-                      </td>
+                      <th className="py-2.5 px-3">Cor</th>
+                      <th className="py-2.5 px-3">Tamanho</th>
+                      <th className="py-2.5 px-3">Qtd Estoque</th>
+                      <th className="py-2.5 px-3">Mínimo</th>
+                      <th className="py-2.5 px-3">Local no Depósito / Loja</th>
+                      <th className="py-2.5 px-3 text-right">Ações</th>
                     </tr>
-                  ) : (
-                    variants.map((v) => (
-                      <tr key={v.id} className="hover:bg-slate-50">
-                        <td className="p-2">
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {variants.map(v => (
+                      <tr key={v.id} className="hover:bg-slate-50/50">
+                        <td className="py-2 px-3">
                           <input
                             type="text"
                             value={v.color}
                             onChange={e => handleUpdateVariant(v.id, 'color', e.target.value)}
-                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs"
-                            placeholder="Ex: Preta, Nude, Azul"
+                            placeholder="Ex: Preto, Branco..."
+                            className="w-28 border border-slate-200 rounded p-1.5 text-xs"
                           />
                         </td>
-                        <td className="p-2">
-                          <select
+                        <td className="py-2 px-3">
+                          <input
+                            type="text"
                             value={v.size}
-                            onChange={e => handleUpdateVariant(v.id, 'size', e.target.value)}
-                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs font-bold bg-white cursor-pointer"
-                          >
-                            {DEPARTMENT_SIZES[department]?.map(sz => (
-                              <option key={sz} value={sz}>{sz}</option>
-                            ))}
-                          </select>
+                            onChange={e => handleUpdateVariant(v.id, 'size', isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
+                            placeholder="36, M, Único"
+                            className="w-20 border border-slate-200 rounded p-1.5 text-xs font-bold text-center"
+                          />
                         </td>
-                        <td className="p-2">
+                        <td className="py-2 px-3">
                           <input
                             type="number"
+                            min="0"
                             value={v.stock}
-                            min="0"
                             onChange={e => handleUpdateVariant(v.id, 'stock', Number(e.target.value))}
-                            className="w-20 border border-slate-200 rounded px-2 py-1 text-xs font-bold text-brand-primary"
+                            className="w-20 border border-slate-200 rounded p-1.5 text-xs font-bold text-center text-emerald-700"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="py-2 px-3">
                           <input
                             type="number"
-                            value={v.minStock}
                             min="0"
+                            value={v.minStock}
                             onChange={e => handleUpdateVariant(v.id, 'minStock', Number(e.target.value))}
-                            className="w-16 border border-slate-200 rounded px-2 py-1 text-xs text-amber-700"
+                            className="w-16 border border-slate-200 rounded p-1.5 text-xs text-center text-amber-700"
                           />
                         </td>
-                        <td className="p-2">
+                        <td className="py-2 px-3">
                           <input
                             type="text"
-                            value={v.ean}
-                            onChange={e => handleUpdateVariant(v.id, 'ean', e.target.value)}
-                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs font-mono"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <input
-                            type="text"
-                            value={v.shelfLocation}
+                            value={v.shelfLocation || ''}
                             onChange={e => handleUpdateVariant(v.id, 'shelfLocation', e.target.value)}
-                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs"
-                            placeholder="Ex: Depósito A"
+                            placeholder="Ex: Prateleira 01, Vitrine..."
+                            className="w-full border border-slate-200 rounded p-1.5 text-xs"
                           />
                         </td>
-                        <td className="p-2 text-right">
+                        <td className="py-2 px-3 text-right">
                           <button
                             type="button"
                             onClick={(e) => handleRemoveVariant(v.id, e)}
-                            className="text-slate-400 hover:text-rose-600 p-1"
+                            className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
         {/* TAB 4: DADOS FISCAIS */}
         {activeTab === 'fiscal' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-950 space-y-1">
-              <strong className="font-bold block text-sm text-emerald-900">Tributação NFC-e / NFe Simplificada:</strong>
-              <p className="text-slate-700">
-                Para emissão fiscal de balcão e notas fiscais de saída, informe unicamente o código <strong>NCM (Nomenclatura Comum do Mercosul)</strong> do produto.
-              </p>
-            </div>
-
-            <div className="max-w-md">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Código NCM da Mercadoria (8 dígitos) *"
+                label="NCM (Nomenclatura Comum Mercosul)"
                 value={fiscalData.ncm}
-                onChange={e => setFiscalData({ ...fiscalData, ncm: e.target.value })}
+                onChange={e => setFiscalData(prev => ({ ...prev, ncm: e.target.value }))}
                 placeholder="Ex: 6403.99.90"
-                required
               />
-              <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                💡 <strong>Exemplos comuns de NCM:</strong><br />
-                • <strong>Calçados de Couro / Sapatos:</strong> 6403.99.90<br />
-                • <strong>Tênis Esportivos / Borracha:</strong> 6404.11.00<br />
-                • <strong>Roupas / Vestuário em Algodão:</strong> 6105.10.00<br />
-                • <strong>Perfumes & Cosméticos:</strong> 3303.00.10
-              </p>
+              <Input
+                label="CEST (Substituição Tributária)"
+                value={fiscalData.cest || ''}
+                onChange={e => setFiscalData(prev => ({ ...prev, cest: e.target.value }))}
+                placeholder="Ex: 28.057.00"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="CFOP Padrão"
+                value={fiscalData.cfop}
+                onChange={e => setFiscalData(prev => ({ ...prev, cfop: e.target.value }))}
+                placeholder="5102"
+              />
+              <Input
+                label="CSOSN / Tributação"
+                value={fiscalData.csosn}
+                onChange={e => setFiscalData(prev => ({ ...prev, csosn: e.target.value }))}
+                placeholder="102"
+              />
+              <Input
+                label="Origem da Mercadoria"
+                value={fiscalData.origin}
+                onChange={e => setFiscalData(prev => ({ ...prev, origin: e.target.value }))}
+                placeholder="0 - Nacional"
+              />
             </div>
           </div>
         )}
 
-        {/* Footer Actions — ONLY THIS BUTTON SUBMITS THE FORM! */}
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+        {/* Form Footer */}
+        <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-
-          <Button type="submit" variant="primary" icon={<Save className="w-4 h-4 text-brand-gold" />}>
-            {editingProduct ? 'Salvar Alterações no Produto' : 'Cadastrar Produto no Estoque'}
+          <Button type="submit" variant="gold" size="lg" icon={<Save className="w-4 h-4 text-slate-950" />}>
+            {editingProduct ? 'Salvar Alterações' : 'Cadastrar Produto'}
           </Button>
         </div>
       </form>
