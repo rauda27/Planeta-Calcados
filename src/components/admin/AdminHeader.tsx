@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Store, Package, CreditCard, ShoppingCart, Cloud, CloudOff, Lock, Key, LogOut, Crown, UserCheck } from 'lucide-react';
+import { Store, Package, CreditCard, ShoppingCart, Cloud, CloudOff, LogOut, Crown, UserCheck } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Button } from '../ui/Button';
 import { StoreLogo } from '../ui/StoreLogo';
@@ -11,18 +11,15 @@ import { getStoredAuthSession, logoutAdminSession, AuthRole } from './AdminAuthG
 interface AdminHeaderProps {
   activeTab: 'inventory' | 'financial' | 'sales';
   onTabChange: (tab: 'inventory' | 'financial' | 'sales') => void;
-  onOpenSecurityModal: () => void;
 }
 
-export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange, onOpenSecurityModal }) => {
+export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => {
   const { products, bills, sales, isCloudConnected } = useStore();
   const [role, setRole] = useState<AuthRole>(null);
-  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     const session = getStoredAuthSession();
     setRole(session.role);
-    setUserName(session.userName);
   }, []);
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -49,12 +46,12 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
             {role === 'owner' ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-950/80 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-lg" title="Acesso Total de Proprietário">
                 <Crown className="w-3 h-3 text-amber-400" />
-                <span>Dono</span>
+                <span>Chefe</span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-950/80 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded-lg" title="Acesso Operacional de Colaborador">
                 <UserCheck className="w-3 h-3 text-blue-400" />
-                <span>Colaborador</span>
+                <span>Funcionário</span>
               </span>
             )}
           </div>
@@ -124,7 +121,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
             )}
           </button>
 
-          {/* Only Owner or Full Staff can access Financials */}
           <button
             type="button"
             onClick={() => onTabChange('financial')}
@@ -144,21 +140,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
           </button>
         </div>
 
-        {/* Action Buttons: Security Settings, Store & Logout */}
+        {/* Action Buttons: Store & Logout */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Security / Password Management */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onOpenSecurityModal}
-            className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white shrink-0 text-xs px-2.5"
-            title="Alterar Senhas e PIN de Acesso"
-            icon={<Key className="w-3.5 h-3.5 text-brand-gold" />}
-          >
-            <span className="hidden sm:inline">Senhas</span>
-          </Button>
-
           {/* Back to Public Store Button */}
           <Link href="/">
             <Button

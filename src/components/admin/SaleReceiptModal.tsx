@@ -129,10 +129,10 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
               CNPJ: 61.033.123/0001-45 • IE: 114.890.123.110
             </p>
             <p className="text-[10px] text-slate-600">
-              Av. Dom Pedro II, 96 - Centro - Quatro Barras / PR - CEP: 83420-000
+              Av. Dom Pedro II, 96 - Centro - Quatro Barras / PR - CEP: 83420-001
             </p>
             <p className="text-[10px] text-slate-600">
-              Tel: (11) 99999-8888 • www.planetacalcados4b.com.br
+              Tel: (41) 99154-3389 • www.planetacalcados4b.com.br
             </p>
 
             <div className="pt-2 mt-2 border-t border-dotted border-slate-300">

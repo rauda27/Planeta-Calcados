@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation';
 import { Product } from '../../types';
 import { AdminHeader } from '../../components/admin/AdminHeader';
 import { AdminAuthGuard } from '../../components/admin/AdminAuthGuard';
-import { AdminSecurityModal } from '../../components/admin/AdminSecurityModal';
 import { LowStockAlerts } from '../../components/admin/LowStockAlerts';
 import { InventoryTable } from '../../components/admin/InventoryTable';
 import { ProductFormModal } from '../../components/admin/ProductFormModal';
@@ -38,9 +37,6 @@ function AdminContent() {
   const [financialFilter, setFinancialFilter] = useState<'hoje' | 'proximos' | 'vencidos' | 'pagos' | 'todos'>('hoje');
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
 
-  // Security / Password Modal State
-  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
-
   const handleOpenProductModal = (product?: Product) => {
     setEditingProduct(product || null);
     setIsProductModalOpen(true);
@@ -61,7 +57,6 @@ function AdminContent() {
         <AdminHeader
           activeTab={activeERPTab}
           onTabChange={setActiveERPTab}
-          onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
         />
 
         {/* Main ERP Body */}
@@ -117,12 +112,6 @@ function AdminContent() {
         <BillFormModal
           isOpen={isBillModalOpen}
           onClose={() => setIsBillModalOpen(false)}
-        />
-
-        {/* Security & Password Modal */}
-        <AdminSecurityModal
-          isOpen={isSecurityModalOpen}
-          onClose={() => setIsSecurityModalOpen(false)}
         />
       </div>
     </AdminAuthGuard>

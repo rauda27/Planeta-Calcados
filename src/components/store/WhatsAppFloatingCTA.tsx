@@ -6,9 +6,9 @@ import { MessageSquare, X, Send, Sparkles } from 'lucide-react';
 export const WhatsAppFloatingCTA: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const STORE_PHONE = '5511999998888';
+  const STORE_PHONE = '5541991543389';
   const whatsappUrl = `https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(
-    'Olá, equipe Planeta Calçados! Gostaria de tirar dúvidas sobre produtos, numerações e cotação de entrega.'
+    'Olá, equipe Planeta Calçados QB! Gostaria de tirar dúvidas sobre produtos, numerações e cotação de entrega.'
   )}`;
 
   return (

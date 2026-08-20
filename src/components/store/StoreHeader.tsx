@@ -78,7 +78,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
 
           {/* WhatsApp Direct Conversion Header Button */}
           <a
-            href="https://wa.me/5511999998888?text=Ol%C3%A1%2C%20Planeta%20Cal%C3%A7ados!%20Gostaria%20de%20falar%20com%20um%20vendedor%20e%20fazer%20uma%20cota%C3%A7%C3%A3o."
+            href="https://wa.me/5541991543389?text=Ol%C3%A1%2C%20Planeta%20Cal%C3%A7ados%20QB!%20Gostaria%20de%20falar%20com%20um%20vendedor%20e%20fazer%20uma%20cota%C3%A7%C3%A3o."
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer"

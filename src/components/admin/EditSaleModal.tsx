@@ -428,7 +428,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
               label="Telefone / WhatsApp"
               value={customerPhone}
               onChange={e => setCustomerPhone(e.target.value)}
-              placeholder="(11) 99999-8888"
+              placeholder="(41) 99154-3389"
             />
           </div>
         </div>

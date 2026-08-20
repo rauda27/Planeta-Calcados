@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, Shield, Key, Eye, EyeOff, Store, UserCheck, Crown, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Shield, Key, Eye, EyeOff, Store, UserCheck, Crown, ArrowRight, AlertCircle } from 'lucide-react';
 import { StoreLogo } from '../ui/StoreLogo';
 import { Button } from '../ui/Button';
 
-// Default Passwords (can be customized by the owner inside the ERP)
-const DEFAULT_OWNER_PASS = 'planeta2026';
-const DEFAULT_STAFF_PIN = '1234';
+// Senhas Oficiais Exclusivas
+const OWNER_MASTER_PASS = 'Haja1315.';
+const STAFF_ACCESS_PASS = 'Planeta01!';
 
 // Helper to calculate SHA-256 cryptographic hash
 async function sha256(message: string): Promise<string> {
@@ -27,8 +27,6 @@ interface AuthState {
 }
 
 const AUTH_STORAGE_KEY = 'planeta_admin_auth_session';
-const OWNER_HASH_KEY = 'planeta_owner_hash_pwd';
-const STAFF_HASH_KEY = 'planeta_staff_hash_pin';
 
 export const getStoredAuthSession = (): AuthState => {
   if (typeof window === 'undefined') return { isAuthenticated: false, role: null, userName: '' };
@@ -80,16 +78,11 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
 
     try {
       const inputHash = await sha256(password.trim());
-
-      // Get saved custom hash or fallback to default hash
-      const defaultOwnerHash = await sha256(DEFAULT_OWNER_PASS);
-      const defaultStaffHash = await sha256(DEFAULT_STAFF_PIN);
-
-      const savedOwnerHash = localStorage.getItem(OWNER_HASH_KEY) || defaultOwnerHash;
-      const savedStaffHash = localStorage.getItem(STAFF_HASH_KEY) || defaultStaffHash;
+      const ownerTargetHash = await sha256(OWNER_MASTER_PASS);
+      const staffTargetHash = await sha256(STAFF_ACCESS_PASS);
 
       if (selectedRole === 'owner') {
-        if (inputHash === savedOwnerHash || password === DEFAULT_OWNER_PASS) {
+        if (inputHash === ownerTargetHash || password.trim() === OWNER_MASTER_PASS) {
           const authData: AuthState = {
             isAuthenticated: true,
             role: 'owner',
@@ -105,7 +98,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
           return;
         }
       } else {
-        if (inputHash === savedStaffHash || password === DEFAULT_STAFF_PIN) {
+        if (inputHash === staffTargetHash || password.trim() === STAFF_ACCESS_PASS) {
           const authData: AuthState = {
             isAuthenticated: true,
             role: 'staff',
@@ -122,7 +115,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
         }
       }
 
-      setErrorMsg('Senha ou PIN incorreto. Verifique as credenciais de acesso.');
+      setErrorMsg('Senha incorreta. Verifique suas credenciais de acesso.');
     } catch (err) {
       setErrorMsg('Erro ao autenticar. Tente novamente.');
     } finally {
@@ -146,7 +139,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
     return <>{children}</>;
   }
 
-  // Otherwise, render elegant encrypted lock screen
+  // Encrypted login portal
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-brand-primary/40 flex flex-col justify-center items-center p-4 relative overflow-hidden">
       {/* Background Decorative Rings */}
@@ -168,7 +161,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
           </div>
 
           <p className="text-xs text-slate-400">
-            Área protegida por criptografia de ponta a ponta SHA-256 para proprietários e colaboradores.
+            Acesso exclusivo para proprietários e colaboradores autorizados.
           </p>
         </div>
 
@@ -176,7 +169,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
         <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-950/80 rounded-2xl border border-slate-800">
           <button
             type="button"
-            onClick={() => { setSelectedRole('owner'); setErrorMsg(''); }}
+            onClick={() => { setSelectedRole('owner'); setErrorMsg(''); setPassword(''); }}
             className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               selectedRole === 'owner'
                 ? 'bg-brand-primary text-white shadow-sm ring-1 ring-brand-gold'
@@ -189,7 +182,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
 
           <button
             type="button"
-            onClick={() => { setSelectedRole('staff'); setErrorMsg(''); }}
+            onClick={() => { setSelectedRole('staff'); setErrorMsg(''); setPassword(''); }}
             className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               selectedRole === 'staff'
                 ? 'bg-brand-primary text-white shadow-sm ring-1 ring-brand-gold'
@@ -204,11 +197,8 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-300 flex items-center justify-between">
-              <span>{selectedRole === 'owner' ? 'Senha Master do Proprietário:' : 'PIN de Acesso do Vendedor / Caixa:'}</span>
-              <span className="text-[10px] text-slate-500 font-mono">
-                {selectedRole === 'owner' ? 'Padrão: planeta2026' : 'Padrão: 1234'}
-              </span>
+            <label className="block text-xs font-semibold text-slate-300">
+              {selectedRole === 'owner' ? 'Senha do Proprietário (Chefe):' : 'Senha dos Funcionários:'}
             </label>
 
             <div className="relative">
@@ -219,7 +209,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder={selectedRole === 'owner' ? 'Digite a Senha Master...' : 'Digite o PIN de 4 dígitos...'}
+                placeholder="Digite a senha de acesso..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-all"
                 autoFocus
                 required
@@ -227,7 +217,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300"
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -266,7 +256,7 @@ export const AdminAuthGuard: React.FC<AdminAuthGuardProps> = ({ children }) => {
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                Descriptografando Acesso...
+                Validando Acesso...
               </span>
             ) : (
               <span className="flex items-center gap-2">

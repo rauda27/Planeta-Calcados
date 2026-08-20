@@ -1,13 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product, ProductVariant, FiscalData, Department, ProductCategory, ShoeGender } from '../../types';
 import { useStore } from '../../context/StoreContext';
 import { Modal } from '../ui/Modal';
 import { Tabs } from '../ui/Tabs';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { Plus, Trash2, Save, Calculator, Layers, FileText, Image as ImageIcon, Check, Sparkles, Tag, Boxes } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Save,
+  Calculator,
+  Layers,
+  FileText,
+  Image as ImageIcon,
+  Boxes,
+  Upload,
+  Link as LinkIcon,
+  Star,
+  Sparkles,
+} from 'lucide-react';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -43,15 +56,65 @@ const DEPARTMENT_CATEGORIES: Record<Department, ProductCategory[]> = {
   'Perfumes': ['Perfumes', 'Colônias', 'Cosméticos'],
 };
 
+// Helper: Compress and resize image file to optimized Base64
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = event => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const maxWidth = 1080;
+        const maxHeight = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Compress to JPEG 85%
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        resolve(compressedBase64);
+      };
+      img.onerror = err => reject(err);
+    };
+    reader.onerror = err => reject(err);
+  });
+};
+
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
   onClose,
   editingProduct,
 }) => {
   const { addProduct, updateProduct } = useStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<string>('geral');
 
-  // Form State - Tab 1: General Info (100% CLEAN & ZEROED OUT)
+  // Form State - Tab 1: General Info
   const [department, setDepartment] = useState<Department>('Calçados');
   const [sku, setSku] = useState('');
   const [mainEan, setMainEan] = useState('');
@@ -65,15 +128,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [soleType, setSoleType] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Form State - Tab 2: Pricing (Zeroed)
+  // Form State - Tab 2: Pricing
   const [costPrice, setCostPrice] = useState<number>(0);
   const [freightExpenses, setFreightExpenses] = useState<number>(0);
   const [markupPercentage, setMarkupPercentage] = useState<number>(100);
   const [salePrice, setSalePrice] = useState<number>(0);
   const [promoPrice, setPromoPrice] = useState<number | undefined>(undefined);
 
-  // Form State - Tab 3: Grid Matrix (Empty by default)
+  // Form State - Tab 3: Grid Matrix
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   // Form State - Tab 4: Fiscal Data
@@ -102,7 +167,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setVariants(editingProduct.variants || []);
       setFiscalData(editingProduct.fiscalData || DEFAULT_FISCAL_DATA);
     } else {
-      // 100% Clean state for brand new product
       setDepartment('Calçados');
       setSku(`SKU-${Math.floor(1000 + Math.random() * 9000)}`);
       setMainEan('');
@@ -152,8 +216,42 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   };
 
-  // Image helpers
-  const handleAddImage = (e: React.MouseEvent) => {
+  // Image Upload Helpers (Computer / Device / Camera)
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsUploading(true);
+    try {
+      const fileArray = Array.from(files);
+      const newBase64Images: string[] = [];
+
+      for (const file of fileArray) {
+        if (file.type.startsWith('image/')) {
+          const compressed = await compressImageFile(file);
+          newBase64Images.push(compressed);
+        }
+      }
+
+      setImages(prev => [...prev, ...newBase64Images]);
+    } catch (err) {
+      console.error('Error uploading image file:', err);
+      alert('Erro ao carregar a imagem. Tente uma foto em formato JPG, PNG ou WebP.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) {
+      handleFileUpload(e.dataTransfer.files);
+    }
+  };
+
+  const handleAddImageUrl = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!imageUrlInput.trim()) return;
     setImages(prev => [...prev, imageUrlInput.trim()]);
@@ -163,6 +261,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const handleRemoveImage = (idx: number, e: React.MouseEvent) => {
     e.preventDefault();
     setImages(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSetPrimaryImage = (idx: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (idx === 0) return;
+    setImages(prev => {
+      const selected = prev[idx];
+      const rest = prev.filter((_, i) => i !== idx);
+      return [selected, ...rest];
+    });
   };
 
   // Variant Matrix Helpers
@@ -184,14 +292,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setVariants(prev => [...prev, newVariant]);
   };
 
-  // Add preset sizes for a color
   const handleAddPresetColorGrid = (colorName: string, e: React.MouseEvent) => {
     e.preventDefault();
     const sizeOptions = DEPARTMENT_SIZES[department] || [];
     const newVariants: ProductVariant[] = sizeOptions.map(sz => ({
       id: `v-preset-${Date.now()}-${sz}-${Math.random().toString(36).substring(2, 5)}`,
       color: colorName,
-      colorHex: colorName.toLowerCase() === 'preto' || colorName.toLowerCase() === 'preta' ? '#000000' : colorName.toLowerCase() === 'branco' || colorName.toLowerCase() === 'branca' ? '#FFFFFF' : '#D4AF37',
+      colorHex:
+        colorName.toLowerCase() === 'preto' || colorName.toLowerCase() === 'preta'
+          ? '#000000'
+          : colorName.toLowerCase() === 'branco' || colorName.toLowerCase() === 'branca'
+          ? '#FFFFFF'
+          : '#D4AF37',
       size: sz,
       stock: 1,
       ean: '',
@@ -260,7 +372,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   };
 
   const tabs = [
-    { id: 'geral', label: '1. Dados Gerais', icon: <Layers className="w-4 h-4" /> },
+    { id: 'geral', label: '1. Dados Gerais & Fotos', icon: <Layers className="w-4 h-4" /> },
     { id: 'precificacao', label: '2. Precificação', icon: <Calculator className="w-4 h-4" /> },
     { id: 'matriz', label: '3. Matriz de Grade', icon: <Boxes className="w-4 h-4" />, badge: variants.length },
     { id: 'fiscal', label: '4. Dados Fiscais (NFe)', icon: <FileText className="w-4 h-4" /> },
@@ -271,14 +383,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={editingProduct ? `Editar Produto: ${editingProduct.name}` : 'Cadastrar Novo Produto'}
-      subtitle="Preencha os dados do item, departamento, grade de tamanhos e preços"
+      subtitle="Preencha os dados do item, departamento, fotos do computador ou link, e grade de tamanhos"
       maxWidth="4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Tabs Bar */}
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-        {/* TAB 1: DADOS GERAIS */}
+        {/* TAB 1: DADOS GERAIS & FOTOS */}
         {activeTab === 'geral' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -387,40 +499,138 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               )}
             </div>
 
-            {/* Images Management */}
-            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 space-y-3">
-              <label className="block text-xs font-semibold text-slate-700">Fotos do Produto (URLs de Imagem)</label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={imageUrlInput}
-                  onChange={e => setImageUrlInput(e.target.value)}
-                  placeholder="Cole o link da imagem (Ex: https://...)"
-                  className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddImage}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
-                >
-                  Adicionar Foto
-                </button>
+            {/* ADVANCED IMAGE MANAGEMENT (FILES FROM COMPUTER & URL LINKS) */}
+            <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-brand-primary" />
+                    <span>Fotos do Produto ({images.length})</span>
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Você pode enviar fotos direto do seu computador/celular ou colar links de imagem.
+                  </p>
+                </div>
+
+                {images.length > 0 && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                    ⭐ A 1ª foto é a Principal da Vitrine
+                  </span>
+                )}
               </div>
 
+              {/* Upload Box (Computer File & Drag and Drop) */}
+              <div
+                onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+                  isDragging
+                    ? 'border-brand-primary bg-brand-primary/5 scale-[0.99]'
+                    : 'border-slate-300 hover:border-brand-primary bg-white'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={e => handleFileUpload(e.target.files)}
+                  className="hidden"
+                />
+
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
+                    {isUploading ? (
+                      <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Upload className="w-6 h-6 text-brand-primary" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">
+                      {isUploading
+                        ? 'Otimizando e carregando foto...'
+                        : 'Clique para escolher fotos do seu Computador / Celular'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Ou arraste e solte seus arquivos de imagem aqui (JPG, PNG, WebP)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Alternative: Add Image by URL */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                  <LinkIcon className="w-3 h-3 text-slate-400" />
+                  <span>Ou adicione por link da web (URL):</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={imageUrlInput}
+                    onChange={e => setImageUrlInput(e.target.value)}
+                    placeholder="https://exemplo.com/foto-do-calcado.jpg"
+                    className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white text-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddImageUrl}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition cursor-pointer"
+                  >
+                    Adicionar Link
+                  </button>
+                </div>
+              </div>
+
+              {/* Photos Preview Gallery */}
               {images.length > 0 && (
-                <div className="flex flex-wrap gap-3 pt-2">
-                  {images.map((img, idx) => (
-                    <div key={idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-slate-200 bg-white">
-                      <img src={img} alt="preview" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={(e) => handleRemoveImage(idx, e)}
-                        className="absolute top-1 right-1 bg-rose-600 text-white p-1 rounded-full opacity-80 hover:opacity-100 cursor-pointer"
+                <div className="space-y-2 pt-2 border-t border-slate-200">
+                  <p className="text-[11px] font-bold text-slate-700">Fotos cadastradas:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                    {images.map((img, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative group rounded-xl overflow-hidden border-2 bg-white aspect-square shadow-sm transition-all ${
+                          idx === 0 ? 'border-brand-gold ring-2 ring-brand-gold/30' : 'border-slate-200'
+                        }`}
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
+                        <img src={img} alt={`foto-${idx + 1}`} className="w-full h-full object-cover" />
+                        
+                        {/* Primary Badge */}
+                        {idx === 0 && (
+                          <span className="absolute top-1 left-1 bg-brand-gold text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+                            <Star className="w-2.5 h-2.5 fill-slate-950" />
+                            Principal
+                          </span>
+                        )}
+
+                        {/* Hover Overlay Controls */}
+                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                          {idx !== 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleSetPrimaryImage(idx, e)}
+                              className="bg-brand-gold hover:bg-amber-400 text-slate-950 text-[10px] font-bold px-2 py-1 rounded cursor-pointer"
+                              title="Tornar Foto Principal"
+                            >
+                              Tornar 1ª
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => handleRemoveImage(idx, e)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white p-1 rounded cursor-pointer"
+                            title="Remover Foto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -435,7 +645,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 label="Preço de Custo (R$)"
                 type="number"
                 step="0.01"
-                value={costPrice}
+                value={costPrice === 0 ? '' : costPrice}
                 onChange={e => handleCostOrMarkupChange(Number(e.target.value), freightExpenses, markupPercentage)}
                 placeholder="0.00"
               />
@@ -443,7 +653,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 label="Frete / Despesas por Par (R$)"
                 type="number"
                 step="0.01"
-                value={freightExpenses}
+                value={freightExpenses === 0 ? '' : freightExpenses}
                 onChange={e => handleCostOrMarkupChange(costPrice, Number(e.target.value), markupPercentage)}
                 placeholder="0.00"
               />
@@ -464,7 +674,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   <input
                     type="number"
                     step="0.01"
-                    value={salePrice}
+                    value={salePrice === 0 ? '' : salePrice}
                     onChange={e => setSalePrice(Number(e.target.value))}
                     className="w-full bg-transparent font-black text-xl text-emerald-950 focus:outline-none"
                     placeholder="0.00"

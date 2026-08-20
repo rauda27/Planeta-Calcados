@@ -313,8 +313,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Direct High-Converting WhatsApp CTA Button */}
             {selectedSize && currentStock > 0 && (
               <a
-                href={`https://wa.me/5511999998888?text=${encodeURIComponent(
-                  `Olá, Planeta Calçados! Quero cotar/comprar o produto:\n- ${product.name} (${product.brand})\n- Tamanho: ${selectedSize}\n- Cor: ${selectedColor}\n- Quantidade: ${quantity}x\n- Valor: R$ ${(displayPrice * quantity).toFixed(2).replace('.', ',')}`
+                href={`https://wa.me/5541991543389?text=${encodeURIComponent(
+                  `Olá, Planeta Calçados QB! Quero cotar/comprar o produto:\n- ${product.name} (${product.brand})\n- Tamanho: ${selectedSize}\n- Cor: ${selectedColor}\n- Quantidade: ${quantity}x\n- Valor: R$ ${(displayPrice * quantity).toFixed(2).replace('.', ',')}`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"

@@ -25,9 +25,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
   const hasDiscount = !!(product.promoPrice && product.promoPrice < product.salePrice);
   const displayPrice = product.promoPrice || product.salePrice;
 
-  const STORE_PHONE = '5511999998888';
+  const STORE_PHONE = '5541991543389';
   const directWhatsappUrl = `https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(
-    `Olá, Planeta Calçados! Gostaria de cotar o produto: ${product.name} (${product.brand}) - R$ ${displayPrice.toFixed(2).replace('.', ',')}`
+    `Olá, Planeta Calçados QB! Gostaria de cotar o produto: ${product.name} (${product.brand}) - R$ ${displayPrice.toFixed(2).replace('.', ',')}`
   )}`;
 
   return (

@@ -30,8 +30,8 @@ export const CartDrawer: React.FC = () => {
     message += `\nTotal da cotação: ${formatPrice(totalAmount)}\n`;
     message += `Aguardo retorno com opções de pagamento e entrega!`;
 
-    // Brazilian WhatsApp number (Planeta Calçados)
-    const phone = '5511999998888';
+    // Brazilian WhatsApp number (Planeta Calçados QB)
+    const phone = '5541991543389';
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 

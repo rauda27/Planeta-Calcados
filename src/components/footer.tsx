@@ -58,12 +58,19 @@ export const Footer: React.FC = () => {
                 <div className="text-slate-300">
                   <span className="font-semibold text-white block">Loja Física Quatro Barras</span>
                   <span>Av. Dom Pedro II, 96 - Centro</span><br />
-                  <span>Quatro Barras - PR, 83420-000</span>
+                  <span>Quatro Barras - PR, 83420-001</span>
                 </div>
               </li>
               <li className="flex items-center gap-2 pt-1">
                 <Phone className="w-3.5 h-3.5 text-brand-gold shrink-0" />
-                <span>(11) 99999-8888 (WhatsApp)</span>
+                <a
+                  href="https://wa.me/5541991543389?text=Ol%C3%A1%2C%20Planeta%20Cal%C3%A7ados%20QB!%20Gostaria%20de%20tirar%20uma%20d%C3%BAvida."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-brand-gold transition-colors"
+                >
+                  (41) 99154-3389 (WhatsApp)
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-brand-gold shrink-0" />
