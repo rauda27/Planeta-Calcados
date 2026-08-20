@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Product, Bill, CartItem, BillStatus, Sale, SaleStatus, SaleItem } from '../types';
 import { db, isFirebaseConfigured } from '../lib/firebase';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 interface ToastState {
   id: string;
@@ -20,6 +20,7 @@ interface StoreContextType {
   toasts: ToastState[];
   isLoaded: boolean;
   isCloudConnected: boolean;
+  cloudError: string | null;
   
   // Product actions
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -62,6 +63,13 @@ const STORAGE_KEYS = {
   CART: 'planeta_cart',
 };
 
+// Safe helper to strip undefined keys so Firestore never rejects data
+const sanitizeForFirestore = <T>(data: T): T => {
+  return JSON.parse(
+    JSON.stringify(data, (_, v) => (v === undefined ? null : v))
+  );
+};
+
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
@@ -71,6 +79,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [toasts, setToasts] = useState<ToastState[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
 
   // Safe localStorage helper
   const saveToLocalStorage = (key: string, data: any) => {
@@ -95,7 +104,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     []
   );
 
-  // Initial Load from LocalStorage Cache
+  // 1. Initial Load from LocalStorage Cache
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -116,7 +125,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, []);
 
-  // Real-time Cloud Synchronization with Firebase Firestore
+  // 2. Real-time Cloud Synchronization with Firebase Firestore
   useEffect(() => {
     if (!db || !isFirebaseConfigured) {
       setIsCloudConnected(false);
@@ -124,51 +133,60 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     try {
-      setIsCloudConnected(true);
-
-      // 1. Sync Products
+      // Sync Products
       const unsubProducts = onSnapshot(
         collection(db, 'products'),
         snapshot => {
+          setIsCloudConnected(true);
+          setCloudError(null);
           const cloudProducts: Product[] = [];
-          snapshot.forEach(doc => {
-            cloudProducts.push(doc.data() as Product);
+          snapshot.forEach(docSnap => {
+            cloudProducts.push(docSnap.data() as Product);
           });
           cloudProducts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          
           setProducts(cloudProducts);
           saveToLocalStorage(STORAGE_KEYS.PRODUCTS, cloudProducts);
         },
-        error => console.warn('Firestore Products sync error:', error)
+        error => {
+          console.error('🔥 Firestore Products error:', error);
+          setIsCloudConnected(false);
+          setCloudError(error.message);
+        }
       );
 
-      // 2. Sync Sales
+      // Sync Sales
       const unsubSales = onSnapshot(
         collection(db, 'sales'),
         snapshot => {
           const cloudSales: Sale[] = [];
-          snapshot.forEach(doc => {
-            cloudSales.push(doc.data() as Sale);
+          snapshot.forEach(docSnap => {
+            cloudSales.push(docSnap.data() as Sale);
           });
           cloudSales.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setSales(cloudSales);
           saveToLocalStorage(STORAGE_KEYS.SALES, cloudSales);
         },
-        error => console.warn('Firestore Sales sync error:', error)
+        error => {
+          console.error('🔥 Firestore Sales error:', error);
+        }
       );
 
-      // 3. Sync Bills
+      // Sync Bills
       const unsubBills = onSnapshot(
         collection(db, 'bills'),
         snapshot => {
           const cloudBills: Bill[] = [];
-          snapshot.forEach(doc => {
-            cloudBills.push(doc.data() as Bill);
+          snapshot.forEach(docSnap => {
+            cloudBills.push(docSnap.data() as Bill);
           });
           cloudBills.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setBills(cloudBills);
           saveToLocalStorage(STORAGE_KEYS.BILLS, cloudBills);
         },
-        error => console.warn('Firestore Bills sync error:', error)
+        error => {
+          console.error('🔥 Firestore Bills error:', error);
+        }
       );
 
       return () => {
@@ -176,9 +194,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         unsubSales();
         unsubBills();
       };
-    } catch (err) {
-      console.warn('Firebase connection failed, running in local mode:', err);
+    } catch (err: any) {
+      console.error('Firebase connection setup failed:', err);
       setIsCloudConnected(false);
+      setCloudError(err?.message || 'Erro ao conectar ao Firebase');
     }
   }, []);
 
@@ -194,19 +213,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updatedAt: now,
     };
 
-    // Update Local State & Storage
+    // Update Local State & Storage immediately
     setProducts(prev => {
       const updated = [newProduct, ...prev];
       saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updated);
       return updated;
     });
 
-    // Sync to Cloud
+    // Sync to Cloud Firestore with sanitization
     if (db && isFirebaseConfigured) {
       try {
-        await setDoc(doc(db, 'products', newProduct.id), newProduct);
-      } catch (err) {
-        console.error('Error saving product to Firebase:', err);
+        await setDoc(doc(db, 'products', newProduct.id), sanitizeForFirestore(newProduct));
+        setIsCloudConnected(true);
+      } catch (err: any) {
+        console.error('🔥 Error saving product to Firebase:', err);
+        setCloudError(err?.message || 'Erro ao salvar no Firestore');
       }
     }
 
@@ -234,9 +255,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     if (db && isFirebaseConfigured && updatedTarget) {
       try {
-        await setDoc(doc(db, 'products', id), updatedTarget);
-      } catch (err) {
-        console.error('Error updating product in Firebase:', err);
+        await setDoc(doc(db, 'products', id), sanitizeForFirestore(updatedTarget));
+      } catch (err: any) {
+        console.error('🔥 Error updating product in Firebase:', err);
       }
     }
 
@@ -253,8 +274,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (db && isFirebaseConfigured) {
       try {
         await deleteDoc(doc(db, 'products', id));
-      } catch (err) {
-        console.error('Error deleting product from Firebase:', err);
+      } catch (err: any) {
+        console.error('🔥 Error deleting product from Firebase:', err);
       }
     }
 
@@ -285,9 +306,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     if (db && isFirebaseConfigured && updatedTarget) {
       try {
-        await setDoc(doc(db, 'products', productId), updatedTarget);
-      } catch (err) {
-        console.error('Error updating stock in Firebase:', err);
+        await setDoc(doc(db, 'products', productId), sanitizeForFirestore(updatedTarget));
+      } catch (err: any) {
+        console.error('🔥 Error updating stock in Firebase:', err);
       }
     }
 
@@ -312,9 +333,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     if (db && isFirebaseConfigured) {
       try {
-        await setDoc(doc(db, 'bills', newBill.id), newBill);
-      } catch (err) {
-        console.error('Error saving bill to Firebase:', err);
+        await setDoc(doc(db, 'bills', newBill.id), sanitizeForFirestore(newBill));
+      } catch (err: any) {
+        console.error('🔥 Error saving bill to Firebase:', err);
       }
     }
 
@@ -338,9 +359,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     if (db && isFirebaseConfigured && updatedTarget) {
       try {
-        await setDoc(doc(db, 'bills', billId), updatedTarget);
-      } catch (err) {
-        console.error('Error updating bill in Firebase:', err);
+        await setDoc(doc(db, 'bills', billId), sanitizeForFirestore(updatedTarget));
+      } catch (err: any) {
+        console.error('🔥 Error updating bill in Firebase:', err);
       }
     }
 
@@ -358,8 +379,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (db && isFirebaseConfigured) {
       try {
         await deleteDoc(doc(db, 'bills', billId));
-      } catch (err) {
-        console.error('Error deleting bill from Firebase:', err);
+      } catch (err: any) {
+        console.error('🔥 Error deleting bill from Firebase:', err);
       }
     }
 
@@ -417,9 +438,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Sync Sale & Stock Deductions to Firebase
     if (db && isFirebaseConfigured) {
-      setDoc(doc(db, 'sales', newSale.id), newSale).catch(err => console.error(err));
+      setDoc(doc(db, 'sales', newSale.id), sanitizeForFirestore(newSale)).catch(err =>
+        console.error('🔥 Error saving sale to Firebase:', err)
+      );
       updatedProducts.forEach(p => {
-        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+        setDoc(doc(db, 'products', p.id), sanitizeForFirestore(p)).catch(err =>
+          console.error('🔥 Error updating stock in Firebase:', err)
+        );
       });
     }
 
@@ -501,9 +526,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     saveToLocalStorage(STORAGE_KEYS.SALES, updatedSales);
 
     if (db && isFirebaseConfigured && savedSale) {
-      setDoc(doc(db, 'sales', saleId), savedSale).catch(err => console.error(err));
+      setDoc(doc(db, 'sales', saleId), sanitizeForFirestore(savedSale)).catch(err =>
+        console.error('🔥 Error updating sale in Firebase:', err)
+      );
       updatedProducts.forEach(p => {
-        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+        setDoc(doc(db, 'products', p.id), sanitizeForFirestore(p)).catch(err =>
+          console.error('🔥 Error updating stock in Firebase:', err)
+        );
       });
     }
 
@@ -552,7 +581,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (db && isFirebaseConfigured) {
       deleteDoc(doc(db, 'sales', saleId)).catch(err => console.error(err));
       updatedProducts.forEach(p => {
-        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+        setDoc(doc(db, 'products', p.id), sanitizeForFirestore(p)).catch(err =>
+          console.error(err)
+        );
       });
     }
 
@@ -589,7 +620,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
 
     if (db && isFirebaseConfigured && updatedSaleTarget) {
-      setDoc(doc(db, 'sales', saleId), updatedSaleTarget).catch(err => console.error(err));
+      setDoc(doc(db, 'sales', saleId), sanitizeForFirestore(updatedSaleTarget)).catch(err =>
+        console.error(err)
+      );
     }
 
     showToast(`Baixa efetuada! Nota promissória quitada com sucesso.`, 'success');
@@ -641,9 +674,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     saveToLocalStorage(STORAGE_KEYS.SALES, updatedSales);
 
     if (db && isFirebaseConfigured && updatedSaleTarget) {
-      setDoc(doc(db, 'sales', saleId), updatedSaleTarget).catch(err => console.error(err));
+      setDoc(doc(db, 'sales', saleId), sanitizeForFirestore(updatedSaleTarget)).catch(err =>
+        console.error(err)
+      );
       updatedProducts.forEach(p => {
-        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+        setDoc(doc(db, 'products', p.id), sanitizeForFirestore(p)).catch(err =>
+          console.error(err)
+        );
       });
     }
 
@@ -729,6 +766,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         toasts,
         isLoaded,
         isCloudConnected,
+        cloudError,
         addProduct,
         updateProduct,
         deleteProduct,
