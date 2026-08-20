@@ -44,8 +44,7 @@ export const StoreHero: React.FC<StoreHeroProps> = ({
             {/* Google 5.0 Review Badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-slate-800 text-xs font-bold shadow-xs">
               <span className="text-amber-500">★★★★★</span>
-              <span>5,0 no Google</span>
-              <span className="text-slate-500 font-normal">(6 avaliações em Quatro Barras - PR)</span>
+              <span>5 Estrelas no Google</span>
             </div>
           </div>
 

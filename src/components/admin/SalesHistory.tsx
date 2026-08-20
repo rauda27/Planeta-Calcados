@@ -108,7 +108,7 @@ export const SalesHistory: React.FC<SalesHistoryProps> = ({ onReopenReceipt }) =
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar por código (ex: VENDA-1001), nome do cliente, CPF ou produto..."
+              placeholder="Buscar por código, cliente, CPF ou produto..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-800 focus:outline-none"

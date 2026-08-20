@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Phone, MapPin, Mail, Clock, CreditCard, Heart, ShieldCheck, Star } from 'lucide-react';
+import { Phone, MapPin, Mail, Clock, CreditCard, ShieldCheck, Star } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -32,8 +32,7 @@ export const Footer: React.FC = () => {
                 <Star className="w-3.5 h-3.5 fill-amber-400" />
                 <Star className="w-3.5 h-3.5 fill-amber-400" />
               </div>
-              <span className="font-bold text-white">5,0 no Google</span>
-              <span className="text-slate-400">(6 avaliações)</span>
+              <span className="font-bold text-white">5 Estrelas no Google</span>
             </div>
           </div>
 
@@ -124,8 +123,8 @@ export const Footer: React.FC = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Acesso Lojista / ERP</span>
             </a>
-            <p className="flex items-center gap-1">
-              Desenvolvido com <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> para Planeta Calçados QB
+            <p className="text-slate-400">
+              Desenvolvido por <strong className="text-slate-300 font-semibold">Ataya Tech</strong>
             </p>
           </div>
         </div>

@@ -47,7 +47,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar por modelo, marca (ex: Vizzano, Olympikus, Ferracini)..."
+              placeholder="Buscar por modelo..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full bg-white/10 hover:bg-white/15 focus:bg-white text-white focus:text-slate-900 placeholder:text-slate-300 focus:placeholder:text-slate-400 rounded-full pl-10 pr-4 py-2 text-sm transition-all duration-200 outline-none ring-1 ring-white/20 focus:ring-2 focus:ring-brand-gold"
@@ -113,7 +113,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Buscar calçado..."
+            placeholder="Buscar por modelo..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full bg-white/10 text-white placeholder:text-slate-300 rounded-full pl-10 pr-4 py-2 text-sm outline-none ring-1 ring-white/20"
