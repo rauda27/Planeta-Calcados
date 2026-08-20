@@ -793,10 +793,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   );
 };
 
-export const useStore = () => {
+export const useStore = (): StoreContextType => {
   const context = useContext(StoreContext);
   if (!context) {
     throw new Error('useStore must be used within a StoreProvider');
   }
   return context;
 };
+
+export default useStore;
