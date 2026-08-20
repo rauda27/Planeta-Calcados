@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Product, Bill, CartItem, BillStatus, Sale, SaleStatus, SaleItem } from '../types';
-import { INITIAL_PRODUCTS, INITIAL_BILLS, INITIAL_SALES } from '../data/mockData';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import { collection, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
 interface ToastState {
   id: string;
@@ -17,6 +18,8 @@ interface StoreContextType {
   cart: CartItem[];
   isCartOpen: boolean;
   toasts: ToastState[];
+  isLoaded: boolean;
+  isCloudConnected: boolean;
   
   // Product actions
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -52,6 +55,13 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const STORAGE_KEYS = {
+  PRODUCTS: 'planeta_products',
+  BILLS: 'planeta_bills',
+  SALES: 'planeta_sales',
+  CART: 'planeta_cart',
+};
+
 export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
@@ -60,198 +70,363 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastState[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
 
-  // Initialize from LocalStorage or Clean Empty State
+  // Safe localStorage helper
+  const saveToLocalStorage = (key: string, data: any) => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(data));
+      }
+    } catch (err) {
+      console.error(`Error saving ${key} to localStorage:`, err);
+    }
+  };
+
+  // Toast Helper
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success') => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts(prev => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, 4000);
+    },
+    []
+  );
+
+  // Initial Load from LocalStorage Cache
   useEffect(() => {
     try {
-      const savedProducts = localStorage.getItem('planeta_products');
-      const savedBills = localStorage.getItem('planeta_bills');
-      const savedSales = localStorage.getItem('planeta_sales');
-      const savedCart = localStorage.getItem('planeta_cart');
+      if (typeof window !== 'undefined') {
+        const savedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+        const savedBills = localStorage.getItem(STORAGE_KEYS.BILLS);
+        const savedSales = localStorage.getItem(STORAGE_KEYS.SALES);
+        const savedCart = localStorage.getItem(STORAGE_KEYS.CART);
 
-      const parsedProducts: Product[] = savedProducts ? JSON.parse(savedProducts) : [];
-      const parsedBills: Bill[] = savedBills ? JSON.parse(savedBills) : [];
-      const parsedSales: Sale[] = savedSales ? JSON.parse(savedSales) : [];
-      const parsedCart: CartItem[] = savedCart ? JSON.parse(savedCart) : [];
-
-      setProducts(parsedProducts);
-      setBills(parsedBills);
-      setSales(parsedSales);
-      setCart(parsedCart);
+        if (savedProducts) setProducts(JSON.parse(savedProducts));
+        if (savedBills) setBills(JSON.parse(savedBills));
+        if (savedSales) setSales(JSON.parse(savedSales));
+        if (savedCart) setCart(JSON.parse(savedCart));
+      }
     } catch (e) {
-      console.error('Error loading localStorage data:', e);
-      setProducts([]);
-      setBills([]);
-      setSales([]);
-      setCart([]);
+      console.error('Error loading initial cache:', e);
     } finally {
       setIsLoaded(true);
     }
   }, []);
 
-  // Sync state to LocalStorage
+  // Real-time Cloud Synchronization with Firebase Firestore
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!db || !isFirebaseConfigured) {
+      setIsCloudConnected(false);
+      return;
+    }
+
     try {
-      localStorage.setItem('planeta_products', JSON.stringify(products));
-    } catch (e) { console.error(e); }
-  }, [products, isLoaded]);
+      setIsCloudConnected(true);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem('planeta_bills', JSON.stringify(bills));
-    } catch (e) { console.error(e); }
-  }, [bills, isLoaded]);
+      // 1. Sync Products
+      const unsubProducts = onSnapshot(
+        collection(db, 'products'),
+        snapshot => {
+          const cloudProducts: Product[] = [];
+          snapshot.forEach(doc => {
+            cloudProducts.push(doc.data() as Product);
+          });
+          cloudProducts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setProducts(cloudProducts);
+          saveToLocalStorage(STORAGE_KEYS.PRODUCTS, cloudProducts);
+        },
+        error => console.warn('Firestore Products sync error:', error)
+      );
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem('planeta_sales', JSON.stringify(sales));
-    } catch (e) { console.error(e); }
-  }, [sales, isLoaded]);
+      // 2. Sync Sales
+      const unsubSales = onSnapshot(
+        collection(db, 'sales'),
+        snapshot => {
+          const cloudSales: Sale[] = [];
+          snapshot.forEach(doc => {
+            cloudSales.push(doc.data() as Sale);
+          });
+          cloudSales.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setSales(cloudSales);
+          saveToLocalStorage(STORAGE_KEYS.SALES, cloudSales);
+        },
+        error => console.warn('Firestore Sales sync error:', error)
+      );
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      localStorage.setItem('planeta_cart', JSON.stringify(cart));
-    } catch (e) { console.error(e); }
-  }, [cart, isLoaded]);
+      // 3. Sync Bills
+      const unsubBills = onSnapshot(
+        collection(db, 'bills'),
+        snapshot => {
+          const cloudBills: Bill[] = [];
+          snapshot.forEach(doc => {
+            cloudBills.push(doc.data() as Bill);
+          });
+          cloudBills.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+          setBills(cloudBills);
+          saveToLocalStorage(STORAGE_KEYS.BILLS, cloudBills);
+        },
+        error => console.warn('Firestore Bills sync error:', error)
+      );
 
-  // Toast Helper
-  const showToast = (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
-  };
+      return () => {
+        unsubProducts();
+        unsubSales();
+        unsubBills();
+      };
+    } catch (err) {
+      console.warn('Firebase connection failed, running in local mode:', err);
+      setIsCloudConnected(false);
+    }
+  }, []);
 
-  // Product Actions
-  const addProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  // -------------------------------------------------------------
+  // Product Actions (Cloud Firestore + LocalStorage Hybrid)
+  // -------------------------------------------------------------
+  const addProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
     const newProduct: Product = {
       ...productData,
-      id: `prod-${Date.now()}`,
+      id: `prod_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: now,
       updatedAt: now,
     };
-    setProducts(prev => [newProduct, ...prev]);
-    showToast(`Produto "${newProduct.name}" cadastrado com sucesso!`);
+
+    // Update Local State & Storage
+    setProducts(prev => {
+      const updated = [newProduct, ...prev];
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updated);
+      return updated;
+    });
+
+    // Sync to Cloud
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'products', newProduct.id), newProduct);
+      } catch (err) {
+        console.error('Error saving product to Firebase:', err);
+      }
+    }
+
+    showToast(`Produto "${newProduct.name}" salvo com sucesso!`, 'success');
   };
 
-  const updateProduct = (id: string, productData: Partial<Product>) => {
-    setProducts(prev =>
-      prev.map(p => {
+  const updateProduct = async (id: string, productData: Partial<Product>) => {
+    let updatedTarget: Product | null = null;
+
+    setProducts(prev => {
+      const updated = prev.map(p => {
         if (p.id === id) {
-          return {
+          updatedTarget = {
             ...p,
             ...productData,
             updatedAt: new Date().toISOString(),
           };
+          return updatedTarget;
         }
         return p;
-      })
-    );
-    showToast(`Produto atualizado com sucesso!`);
+      });
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured && updatedTarget) {
+      try {
+        await setDoc(doc(db, 'products', id), updatedTarget);
+      } catch (err) {
+        console.error('Error updating product in Firebase:', err);
+      }
+    }
+
+    showToast(`Produto atualizado com sucesso!`, 'success');
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-    showToast(`Produto removido do catálogo!`, 'info');
+  const deleteProduct = async (id: string) => {
+    setProducts(prev => {
+      const updated = prev.filter(p => p.id !== id);
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await deleteDoc(doc(db, 'products', id));
+      } catch (err) {
+        console.error('Error deleting product from Firebase:', err);
+      }
+    }
+
+    showToast(`Produto removido!`, 'info');
   };
 
-  const updateVariantStock = (productId: string, variantId: string, newStock: number) => {
-    setProducts(prev =>
-      prev.map(p => {
+  const updateVariantStock = async (productId: string, variantId: string, newStock: number) => {
+    let updatedTarget: Product | null = null;
+
+    setProducts(prev => {
+      const updated = prev.map(p => {
         if (p.id === productId) {
           const updatedVariants = p.variants.map(v =>
             v.id === variantId ? { ...v, stock: Math.max(0, newStock) } : v
           );
-          return {
+          updatedTarget = {
             ...p,
             variants: updatedVariants,
             updatedAt: new Date().toISOString(),
           };
+          return updatedTarget;
         }
         return p;
-      })
-    );
-    showToast(`Estoque da numeração atualizado!`);
+      });
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured && updatedTarget) {
+      try {
+        await setDoc(doc(db, 'products', productId), updatedTarget);
+      } catch (err) {
+        console.error('Error updating stock in Firebase:', err);
+      }
+    }
+
+    showToast(`Estoque atualizado!`, 'success');
   };
 
+  // -------------------------------------------------------------
   // Bill Actions
-  const addBill = (billData: Omit<Bill, 'id' | 'createdAt'>) => {
+  // -------------------------------------------------------------
+  const addBill = async (billData: Omit<Bill, 'id' | 'createdAt'>) => {
     const newBill: Bill = {
       ...billData,
-      id: `bill-${Date.now()}`,
+      id: `bill_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString(),
     };
-    setBills(prev => [newBill, ...prev]);
+
+    setBills(prev => {
+      const updated = [newBill, ...prev];
+      saveToLocalStorage(STORAGE_KEYS.BILLS, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'bills', newBill.id), newBill);
+      } catch (err) {
+        console.error('Error saving bill to Firebase:', err);
+      }
+    }
+
     showToast(`Boleto de R$ ${newBill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} cadastrado!`);
   };
 
-  const updateBillStatus = (billId: string, status: BillStatus) => {
-    setBills(prev =>
-      prev.map(b => (b.id === billId ? { ...b, status } : b))
-    );
+  const updateBillStatus = async (billId: string, status: BillStatus) => {
+    let updatedTarget: Bill | null = null;
+
+    setBills(prev => {
+      const updated = prev.map(b => {
+        if (b.id === billId) {
+          updatedTarget = { ...b, status };
+          return updatedTarget;
+        }
+        return b;
+      });
+      saveToLocalStorage(STORAGE_KEYS.BILLS, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured && updatedTarget) {
+      try {
+        await setDoc(doc(db, 'bills', billId), updatedTarget);
+      } catch (err) {
+        console.error('Error updating bill in Firebase:', err);
+      }
+    }
+
     const statusText = status === 'Pago' ? 'marcado como PAGO' : status === 'Atrasado' ? 'marcado como ATRASADO' : 'marcado como PENDENTE';
     showToast(`Boleto ${statusText}!`, status === 'Pago' ? 'success' : 'warning');
   };
 
-  const deleteBill = (billId: string) => {
-    setBills(prev => prev.filter(b => b.id !== billId));
+  const deleteBill = async (billId: string) => {
+    setBills(prev => {
+      const updated = prev.filter(b => b.id !== billId);
+      saveToLocalStorage(STORAGE_KEYS.BILLS, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await deleteDoc(doc(db, 'bills', billId));
+      } catch (err) {
+        console.error('Error deleting bill from Firebase:', err);
+      }
+    }
+
     showToast(`Boleto excluído com sucesso!`, 'info');
   };
 
   // -------------------------------------------------------------
-  // POS & Sales Actions (WITH AUTOMATIC STOCK DEDUCTION / RESTORATION)
+  // POS & Sales Actions
   // -------------------------------------------------------------
   const addSale = (saleData: Omit<Sale, 'id' | 'code' | 'createdAt'>): Sale => {
     const now = new Date().toISOString();
     const saleCode = `VENDA-${Math.floor(1000 + Math.random() * 9000)}`;
     const newSale: Sale = {
       ...saleData,
-      id: `sale-${Date.now()}`,
+      id: `sale_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       code: saleCode,
       createdAt: now,
     };
 
-    // AUTOMATIC STOCK DEDUCTION IN PRODUCT MATRIX
-    setProducts(prevProducts =>
-      prevProducts.map(product => {
-        let hasProductInSale = false;
+    // Deduct stock in state & local storage
+    const updatedProducts = products.map(product => {
+      let hasProductInSale = false;
 
-        const updatedVariants = product.variants.map(variant => {
-          const matchingItem = saleData.items.find(
-            item => item.productId === product.id && item.variantId === variant.id
-          );
+      const updatedVariants = product.variants.map(variant => {
+        const matchingItem = saleData.items.find(
+          item => item.productId === product.id && item.variantId === variant.id
+        );
 
-          if (matchingItem) {
-            hasProductInSale = true;
-            const newStock = Math.max(0, variant.stock - matchingItem.quantity);
-            return { ...variant, stock: newStock };
-          }
-          return variant;
-        });
-
-        if (hasProductInSale) {
-          return {
-            ...product,
-            variants: updatedVariants,
-            updatedAt: now,
-          };
+        if (matchingItem) {
+          hasProductInSale = true;
+          const newStock = Math.max(0, variant.stock - matchingItem.quantity);
+          return { ...variant, stock: newStock };
         }
-        return product;
-      })
-    );
+        return variant;
+      });
 
-    setSales(prev => [newSale, ...prev]);
+      if (hasProductInSale) {
+        return {
+          ...product,
+          variants: updatedVariants,
+          updatedAt: now,
+        };
+      }
+      return product;
+    });
+
+    setProducts(updatedProducts);
+    saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updatedProducts);
+
+    setSales(prev => {
+      const updatedSales = [newSale, ...prev];
+      saveToLocalStorage(STORAGE_KEYS.SALES, updatedSales);
+      return updatedSales;
+    });
+
+    // Sync Sale & Stock Deductions to Firebase
+    if (db && isFirebaseConfigured) {
+      setDoc(doc(db, 'sales', newSale.id), newSale).catch(err => console.error(err));
+      updatedProducts.forEach(p => {
+        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+      });
+    }
+
     showToast(`Venda ${saleCode} realizada com sucesso e estoque atualizado!`, 'success');
     return newSale;
   };
 
-  // UPDATE SALE WITH AUTOMATIC INVENTORY ADJUSTMENT FOR EDITED ITEMS
   const updateSale = (
     saleId: string,
     updatedFields: Partial<Sale>,
@@ -262,43 +437,43 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const itemsToSave = newItems || originalSale.items;
 
-    // IF ITEMS WERE EDITED/REPLACED, AUTOMATICALLY RECONCILE PRODUCT STOCK
+    // Reconcile stock
+    let updatedProducts = products;
     if (newItems && originalSale.status !== 'cancelled') {
-      setProducts(prevProducts =>
-        prevProducts.map(product => {
-          let modified = false;
+      updatedProducts = products.map(product => {
+        let modified = false;
 
-          const updatedVariants = product.variants.map(variant => {
-            // Find old sold quantity in original sale
-            const oldItem = originalSale.items.find(
-              i => i.productId === product.id && i.variantId === variant.id
-            );
-            const oldQty = oldItem ? oldItem.quantity : 0;
+        const updatedVariants = product.variants.map(variant => {
+          const oldItem = originalSale.items.find(
+            i => i.productId === product.id && i.variantId === variant.id
+          );
+          const oldQty = oldItem ? oldItem.quantity : 0;
 
-            // Find new sold quantity in updated sale
-            const newItem = newItems.find(
-              i => i.productId === product.id && i.variantId === variant.id
-            );
-            const newQty = newItem ? newItem.quantity : 0;
+          const newItem = newItems.find(
+            i => i.productId === product.id && i.variantId === variant.id
+          );
+          const newQty = newItem ? newItem.quantity : 0;
 
-            const diff = oldQty - newQty; // If diff > 0 (sold less), returns to stock. If diff < 0 (sold more), deducts from stock.
-            if (diff !== 0) {
-              modified = true;
-              return { ...variant, stock: Math.max(0, variant.stock + diff) };
-            }
-            return variant;
-          });
-
-          if (modified) {
-            return {
-              ...product,
-              variants: updatedVariants,
-              updatedAt: new Date().toISOString(),
-            };
+          const diff = oldQty - newQty;
+          if (diff !== 0) {
+            modified = true;
+            return { ...variant, stock: Math.max(0, variant.stock + diff) };
           }
-          return product;
-        })
-      );
+          return variant;
+        });
+
+        if (modified) {
+          return {
+            ...product,
+            variants: updatedVariants,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return product;
+      });
+
+      setProducts(updatedProducts);
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updatedProducts);
     }
 
     const calculatedSubtotal = itemsToSave.reduce((acc, i) => acc + i.total, 0);
@@ -306,70 +481,92 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updatedFields.discount !== undefined ? updatedFields.discount : originalSale.discount;
     const calculatedTotal = Math.max(0, calculatedSubtotal - calculatedDiscount);
 
-    setSales(prev =>
-      prev.map(s => {
-        if (s.id === saleId) {
-          return {
-            ...s,
-            ...updatedFields,
-            items: itemsToSave,
-            subtotal: calculatedSubtotal,
-            discount: calculatedDiscount,
-            total: calculatedTotal,
-          };
-        }
-        return s;
-      })
-    );
+    let savedSale: Sale | null = null;
+    const updatedSales = sales.map(s => {
+      if (s.id === saleId) {
+        savedSale = {
+          ...s,
+          ...updatedFields,
+          items: itemsToSave,
+          subtotal: calculatedSubtotal,
+          discount: calculatedDiscount,
+          total: calculatedTotal,
+        };
+        return savedSale;
+      }
+      return s;
+    });
 
-    showToast(`Venda ${originalSale.code} atualizada e estoque ajustado com sucesso!`, 'success');
+    setSales(updatedSales);
+    saveToLocalStorage(STORAGE_KEYS.SALES, updatedSales);
+
+    if (db && isFirebaseConfigured && savedSale) {
+      setDoc(doc(db, 'sales', saleId), savedSale).catch(err => console.error(err));
+      updatedProducts.forEach(p => {
+        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+      });
+    }
+
+    showToast(`Venda ${originalSale.code} atualizada e salva com sucesso!`, 'success');
   };
 
-  // DELETE SALE WITH AUTOMATIC STOCK RESTORATION
   const deleteSale = (saleId: string) => {
     const saleToDelete = sales.find(s => s.id === saleId);
     if (!saleToDelete) return;
 
-    // AUTOMATICALLY RESTORE ALL QUANTITIES BACK TO PRODUCT STOCK
+    let updatedProducts = products;
     if (saleToDelete.status !== 'cancelled' && saleToDelete.items?.length > 0) {
-      setProducts(prevProducts =>
-        prevProducts.map(product => {
-          let modified = false;
+      updatedProducts = products.map(product => {
+        let modified = false;
 
-          const updatedVariants = product.variants.map(variant => {
-            const soldItem = saleToDelete.items.find(
-              item => item.productId === product.id && item.variantId === variant.id
-            );
+        const updatedVariants = product.variants.map(variant => {
+          const soldItem = saleToDelete.items.find(
+            item => item.productId === product.id && item.variantId === variant.id
+          );
 
-            if (soldItem && soldItem.quantity > 0) {
-              modified = true;
-              return { ...variant, stock: variant.stock + soldItem.quantity };
-            }
-            return variant;
-          });
-
-          if (modified) {
-            return {
-              ...product,
-              variants: updatedVariants,
-              updatedAt: new Date().toISOString(),
-            };
+          if (soldItem && soldItem.quantity > 0) {
+            modified = true;
+            return { ...variant, stock: variant.stock + soldItem.quantity };
           }
-          return product;
-        })
-      );
+          return variant;
+        });
+
+        if (modified) {
+          return {
+            ...product,
+            variants: updatedVariants,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return product;
+      });
+
+      setProducts(updatedProducts);
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updatedProducts);
     }
 
-    setSales(prev => prev.filter(s => s.id !== saleId));
-    showToast(`Venda ${saleToDelete.code} excluída e itens estornados para o estoque!`, 'info');
+    const updatedSales = sales.filter(s => s.id !== saleId);
+    setSales(updatedSales);
+    saveToLocalStorage(STORAGE_KEYS.SALES, updatedSales);
+
+    if (db && isFirebaseConfigured) {
+      deleteDoc(doc(db, 'sales', saleId)).catch(err => console.error(err));
+      updatedProducts.forEach(p => {
+        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+      });
+    }
+
+    showToast(`Venda ${saleToDelete.code} excluída e itens estornados!`, 'info');
   };
 
   const markPromissoryAsPaid = (saleId: string) => {
     const now = new Date().toISOString();
-    setSales(prev =>
-      prev.map(s => {
+    let updatedSaleTarget: Sale | null = null;
+
+    setSales(prev => {
+      const updated = prev.map(s => {
         if (s.id === saleId) {
-          return {
+          updatedSaleTarget = {
             ...s,
             status: 'completed' as SaleStatus,
             paymentDetails: s.paymentDetails?.promissory
@@ -383,10 +580,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 }
               : s.paymentDetails,
           };
+          return updatedSaleTarget;
         }
         return s;
-      })
-    );
+      });
+      saveToLocalStorage(STORAGE_KEYS.SALES, updated);
+      return updated;
+    });
+
+    if (db && isFirebaseConfigured && updatedSaleTarget) {
+      setDoc(doc(db, 'sales', saleId), updatedSaleTarget).catch(err => console.error(err));
+    }
+
     showToast(`Baixa efetuada! Nota promissória quitada com sucesso.`, 'success');
   };
 
@@ -394,84 +599,107 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const saleToCancel = sales.find(s => s.id === saleId);
     if (!saleToCancel) return;
 
-    // When cancelling, also restore stock
+    let updatedProducts = products;
     if (saleToCancel.status !== 'cancelled' && saleToCancel.items?.length > 0) {
-      setProducts(prevProducts =>
-        prevProducts.map(product => {
-          let modified = false;
-          const updatedVariants = product.variants.map(variant => {
-            const soldItem = saleToCancel.items.find(
-              item => item.productId === product.id && item.variantId === variant.id
-            );
-            if (soldItem && soldItem.quantity > 0) {
-              modified = true;
-              return { ...variant, stock: variant.stock + soldItem.quantity };
-            }
-            return variant;
-          });
-
-          if (modified) {
-            return {
-              ...product,
-              variants: updatedVariants,
-              updatedAt: new Date().toISOString(),
-            };
+      updatedProducts = products.map(product => {
+        let modified = false;
+        const updatedVariants = product.variants.map(variant => {
+          const soldItem = saleToCancel.items.find(
+            item => item.productId === product.id && item.variantId === variant.id
+          );
+          if (soldItem && soldItem.quantity > 0) {
+            modified = true;
+            return { ...variant, stock: variant.stock + soldItem.quantity };
           }
-          return product;
-        })
-      );
+          return variant;
+        });
+
+        if (modified) {
+          return {
+            ...product,
+            variants: updatedVariants,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return product;
+      });
+
+      setProducts(updatedProducts);
+      saveToLocalStorage(STORAGE_KEYS.PRODUCTS, updatedProducts);
     }
 
-    setSales(prev =>
-      prev.map(s => (s.id === saleId ? { ...s, status: 'cancelled' as SaleStatus } : s))
-    );
+    let updatedSaleTarget: Sale | null = null;
+    const updatedSales = sales.map(s => {
+      if (s.id === saleId) {
+        updatedSaleTarget = { ...s, status: 'cancelled' as SaleStatus };
+        return updatedSaleTarget;
+      }
+      return s;
+    });
+
+    setSales(updatedSales);
+    saveToLocalStorage(STORAGE_KEYS.SALES, updatedSales);
+
+    if (db && isFirebaseConfigured && updatedSaleTarget) {
+      setDoc(doc(db, 'sales', saleId), updatedSaleTarget).catch(err => console.error(err));
+      updatedProducts.forEach(p => {
+        setDoc(doc(db, 'products', p.id), p).catch(err => console.error(err));
+      });
+    }
+
     showToast(`Venda cancelada e estoque estornado.`, 'warning');
   };
 
-  // -------------------------------------------------------------
-  // SYSTEM WIPE / DELIVERY TO CLIENT ACTION
-  // -------------------------------------------------------------
   const clearERPTransactionsForDelivery = () => {
     try {
       setSales([]);
       setBills([]);
       setCart([]);
-      localStorage.removeItem('planeta_sales');
-      localStorage.removeItem('planeta_bills');
-      localStorage.removeItem('planeta_cart');
-      localStorage.setItem('planeta_sales', JSON.stringify([]));
-      localStorage.setItem('planeta_bills', JSON.stringify([]));
-      localStorage.setItem('planeta_cart', JSON.stringify([]));
-      showToast('🧹 ERP limpo com sucesso! Histórico de vendas e contas zerados para entrega ao cliente.', 'success');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.BILLS, JSON.stringify([]));
+        localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify([]));
+      }
+      showToast('🧹 ERP limpo com sucesso.', 'success');
     } catch (e) {
       console.error('Error clearing ERP data:', e);
     }
   };
 
+  // -------------------------------------------------------------
   // Cart Actions
+  // -------------------------------------------------------------
   const addToCart = (product: Product, selectedSize: string | number, selectedColor: string, quantity = 1) => {
     const cartItemId = `${product.id}-${selectedColor}-${selectedSize}`;
     setCart(prev => {
       const existing = prev.find(item => item.id === cartItemId);
+      let updated: CartItem[];
       if (existing) {
-        return prev.map(item =>
+        updated = prev.map(item =>
           item.id === cartItemId ? { ...item, quantity: item.quantity + quantity } : item
         );
+      } else {
+        updated = [...prev, { id: cartItemId, product, selectedSize, selectedColor, quantity }];
       }
-      return [...prev, { id: cartItemId, product, selectedSize, selectedColor, quantity }];
+      saveToLocalStorage(STORAGE_KEYS.CART, updated);
+      return updated;
     });
     setIsCartOpen(true);
-    showToast(`Item (${selectedColor} / Tam: ${selectedSize}) adicionado à cotação!`);
+    showToast(`Item adicionado à cotação!`);
   };
 
   const removeFromCart = (cartItemId: string) => {
-    setCart(prev => prev.filter(item => item.id !== cartItemId));
+    setCart(prev => {
+      const updated = prev.filter(item => item.id !== cartItemId);
+      saveToLocalStorage(STORAGE_KEYS.CART, updated);
+      return updated;
+    });
     showToast('Item removido da cotação.', 'info');
   };
 
   const updateCartQuantity = (cartItemId: string, delta: number) => {
-    setCart(prev =>
-      prev
+    setCart(prev => {
+      const updated = prev
         .map(item => {
           if (item.id === cartItemId) {
             const newQty = item.quantity + delta;
@@ -479,12 +707,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
           return item;
         })
-        .filter(Boolean) as CartItem[]
-    );
+        .filter(Boolean) as CartItem[];
+      saveToLocalStorage(STORAGE_KEYS.CART, updated);
+      return updated;
+    });
   };
 
   const clearCart = () => {
     setCart([]);
+    saveToLocalStorage(STORAGE_KEYS.CART, []);
   };
 
   return (
@@ -496,6 +727,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         cart,
         isCartOpen,
         toasts,
+        isLoaded,
+        isCloudConnected,
         addProduct,
         updateProduct,
         deleteProduct,

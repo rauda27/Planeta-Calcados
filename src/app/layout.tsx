@@ -36,6 +36,11 @@ export const metadata: Metadata = {
     title: 'Planeta Calçados QB — O Planeta aos seus pés',
     description: 'Sua loja de calçados, moda e acessórios em Quatro Barras - PR. As melhores marcas com atendimento direto via WhatsApp.',
   },
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   robots: {
     index: true,
     follow: true,
