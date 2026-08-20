@@ -18,7 +18,7 @@ export const LowStockAlerts: React.FC<LowStockAlertsProps> = ({ onEditProduct })
     productName: string;
     brand: string;
     variantId: string;
-    size: number;
+    size: string | number;
     color: string;
     stock: number;
     minStock: number;
