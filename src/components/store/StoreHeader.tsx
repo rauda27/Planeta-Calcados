@@ -2,9 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShoppingBag, Search, Compass, SlidersHorizontal, MessageSquare } from 'lucide-react';
+import { ShoppingBag, Search, Compass, SlidersHorizontal, MessageSquare, Instagram } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { StoreLogo } from '../ui/StoreLogo';
+import { getWhatsAppUrl, STORE_INSTAGRAM_URL, STORE_INSTAGRAM_HANDLE } from '../../lib/constants';
 
 interface StoreHeaderProps {
   searchQuery: string;
@@ -28,6 +29,16 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
           <Compass className="w-3.5 h-3.5 text-brand-gold" />
           <span>Planeta Calçados QB — <strong>"O Planeta aos seus pés"</strong></span>
         </span>
+        <span className="hidden md:inline text-white/30">•</span>
+        <a
+          href={STORE_INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden md:flex items-center gap-1 text-slate-200 hover:text-brand-gold transition-colors"
+        >
+          <Instagram className="w-3.5 h-3.5 text-brand-gold" />
+          <span>{STORE_INSTAGRAM_HANDLE}</span>
+        </a>
         <span className="hidden md:inline text-white/30">•</span>
         <span className="hidden md:inline text-slate-200">
           Loja em Quatro Barras - PR • Atendimento Direto via WhatsApp
@@ -78,7 +89,7 @@ export const StoreHeader: React.FC<StoreHeaderProps> = ({
 
           {/* WhatsApp Direct Conversion Header Button */}
           <a
-            href="https://wa.me/5541991543389?text=Ol%C3%A1%2C%20Planeta%20Cal%C3%A7ados%20QB!%20Gostaria%20de%20falar%20com%20um%20vendedor%20e%20fazer%20uma%20cota%C3%A7%C3%A3o."
+            href={getWhatsAppUrl('Olá, Planeta Calçados QB! Gostaria de falar com um vendedor e fazer uma cotação.')}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer"

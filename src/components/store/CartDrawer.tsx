@@ -5,6 +5,7 @@ import { useStore } from '../../context/StoreContext';
 import { Drawer } from '../ui/Drawer';
 import { Button } from '../ui/Button';
 import { Trash2, Plus, Minus, MessageCircle, ShoppingBag, ArrowRight } from 'lucide-react';
+import { getWhatsAppUrl } from '../../lib/constants';
 
 export const CartDrawer: React.FC = () => {
   const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateCartQuantity, clearCart } = useStore();
@@ -20,19 +21,18 @@ export const CartDrawer: React.FC = () => {
   const generateWhatsAppLink = () => {
     if (cart.length === 0) return '#';
 
-    let message = `Olá, Planeta Calçados! Gostaria de cotar os seguintes itens:\n`;
+    let message = `Olá, Planeta Calçados QB! Gostaria de cotar os seguintes itens:\n`;
     
     cart.forEach(item => {
       const price = item.product.promoPrice || item.product.salePrice;
-      message += `- ${item.quantity}x ${item.product.name} - Tamanho: [${item.selectedSize}] - Cor: [${item.selectedColor}] - ${formatPrice(price)}\n`;
+      message += `- ${item.quantity}x ${item.product.name} (SKU: ${item.product.sku}) - Tamanho: [${item.selectedSize}] - Cor: [${item.selectedColor}] - ${formatPrice(price)}\n`;
     });
 
     message += `\nTotal da cotação: ${formatPrice(totalAmount)}\n`;
     message += `Aguardo retorno com opções de pagamento e entrega!`;
 
     // Brazilian WhatsApp number (Planeta Calçados QB)
-    const phone = '5541991543389';
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    return getWhatsAppUrl(message);
   };
 
   return (

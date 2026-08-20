@@ -1,9 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Product, Bill, CartItem, BillStatus, Sale, SaleStatus, SaleItem } from '../types';
+import { Product, Bill, CartItem, BillStatus, Sale, SaleStatus, SaleItem, StoreBanners } from '../types';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+
+export const DEFAULT_BANNERS: StoreBanners = {
+  heroBannerImage: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=1000&q=80',
+  femBannerImage: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80',
+  tenisBannerImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80',
+  mascBannerImage: 'https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&w=800&q=80',
+  acessoriosBannerImage: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800&q=80',
+};
 
 interface ToastState {
   id: string;
@@ -16,11 +24,16 @@ interface StoreContextType {
   bills: Bill[];
   sales: Sale[];
   cart: CartItem[];
+  banners: StoreBanners;
   isCartOpen: boolean;
   toasts: ToastState[];
   isLoaded: boolean;
   isCloudConnected: boolean;
   cloudError: string | null;
+  
+  // Banner actions
+  updateBanners: (newBanners: Partial<StoreBanners>) => Promise<void>;
+  resetBannersToDefault: () => Promise<void>;
   
   // Product actions
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -70,6 +83,7 @@ const STORAGE_KEYS = {
   BILLS: 'planeta_bills',
   SALES: 'planeta_sales',
   CART: 'planeta_cart',
+  BANNERS: 'planeta_banners',
 };
 
 // Safe helper to strip undefined keys so Firestore never rejects data
@@ -84,6 +98,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [bills, setBills] = useState<Bill[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [banners, setBanners] = useState<StoreBanners>(DEFAULT_BANNERS);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastState[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -121,11 +136,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const savedBills = localStorage.getItem(STORAGE_KEYS.BILLS);
         const savedSales = localStorage.getItem(STORAGE_KEYS.SALES);
         const savedCart = localStorage.getItem(STORAGE_KEYS.CART);
+        const savedBanners = localStorage.getItem(STORAGE_KEYS.BANNERS);
 
         if (savedProducts) setProducts(JSON.parse(savedProducts));
         if (savedBills) setBills(JSON.parse(savedBills));
         if (savedSales) setSales(JSON.parse(savedSales));
         if (savedCart) setCart(JSON.parse(savedCart));
+        if (savedBanners) setBanners({ ...DEFAULT_BANNERS, ...JSON.parse(savedBanners) });
       }
     } catch (e) {
       console.error('Error loading initial cache:', e);
@@ -198,10 +215,26 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
       );
 
+      // Sync Banners & Settings
+      const unsubBanners = onSnapshot(
+        doc(db, 'store_settings', 'banners'),
+        docSnap => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as StoreBanners;
+            setBanners({ ...DEFAULT_BANNERS, ...data });
+            saveToLocalStorage(STORAGE_KEYS.BANNERS, data);
+          }
+        },
+        error => {
+          console.error('🔥 Firestore Banners error:', error);
+        }
+      );
+
       return () => {
         unsubProducts();
         unsubSales();
         unsubBills();
+        unsubBanners();
       };
     } catch (err: any) {
       console.error('Firebase connection setup failed:', err);
@@ -794,6 +827,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     saveToLocalStorage(STORAGE_KEYS.CART, []);
   };
 
+  // -------------------------------------------------------------
+  // Banner & Store Customization Actions
+  // -------------------------------------------------------------
+  const updateBanners = async (newBanners: Partial<StoreBanners>) => {
+    const updated: StoreBanners = { ...banners, ...newBanners };
+    setBanners(updated);
+    saveToLocalStorage(STORAGE_KEYS.BANNERS, updated);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'store_settings', 'banners'), sanitizeForFirestore(updated));
+        setIsCloudConnected(true);
+      } catch (err: any) {
+        console.error('🔥 Error saving banners to Firebase:', err);
+      }
+    }
+    showToast('Imagens e Banners da loja atualizados com sucesso!', 'success');
+  };
+
+  const resetBannersToDefault = async () => {
+    setBanners(DEFAULT_BANNERS);
+    saveToLocalStorage(STORAGE_KEYS.BANNERS, DEFAULT_BANNERS);
+
+    if (db && isFirebaseConfigured) {
+      try {
+        await setDoc(doc(db, 'store_settings', 'banners'), sanitizeForFirestore(DEFAULT_BANNERS));
+      } catch (err) {
+        console.error('Error resetting banners on Firebase:', err);
+      }
+    }
+    showToast('Banners restaurados para o padrão original.', 'info');
+  };
+
   return (
     <StoreContext.Provider
       value={{
@@ -801,11 +867,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         bills,
         sales,
         cart,
+        banners,
         isCartOpen,
         toasts,
         isLoaded,
         isCloudConnected,
         cloudError,
+        updateBanners,
+        resetBannersToDefault,
         addProduct,
         updateProduct,
         deleteProduct,

@@ -2,14 +2,14 @@
 
 import React, { useState } from 'react';
 import { MessageSquare, X, Send, Sparkles } from 'lucide-react';
+import { getWhatsAppUrl } from '../../lib/constants';
 
 export const WhatsAppFloatingCTA: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const STORE_PHONE = '5541991543389';
-  const whatsappUrl = `https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(
+  const whatsappUrl = getWhatsAppUrl(
     'Olá, equipe Planeta Calçados QB! Gostaria de tirar dúvidas sobre produtos, numerações e cotação de entrega.'
-  )}`;
+  );
 
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3 select-none">

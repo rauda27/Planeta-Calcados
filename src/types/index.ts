@@ -91,6 +91,14 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface StoreBanners {
+  heroBannerImage: string;
+  femBannerImage: string;
+  tenisBannerImage: string;
+  mascBannerImage: string;
+  acessoriosBannerImage: string;
+}
+
 export type BillCategory = 
   | 'Estoque' 
   | 'Aluguel' 

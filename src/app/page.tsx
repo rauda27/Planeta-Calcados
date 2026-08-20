@@ -2,9 +2,12 @@
 
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Product, FilterState, ProductCategory } from '../types';
+import { Product, FilterState, ProductCategory, Department } from '../types';
 import { StoreHeader } from '../components/store/StoreHeader';
 import { StoreHero } from '../components/store/StoreHero';
+import { TrustBar } from '../components/store/TrustBar';
+import { CategoryShowcase } from '../components/store/CategoryShowcase';
+import { WhatsAppBannerCTA } from '../components/store/WhatsAppBannerCTA';
 import { FilterSidebar } from '../components/store/FilterSidebar';
 import { ProductGrid } from '../components/store/ProductGrid';
 import { ProductDetailModal } from '../components/store/ProductDetailModal';
@@ -12,6 +15,7 @@ import { CartDrawer } from '../components/store/CartDrawer';
 import { WhatsAppFloatingCTA } from '../components/store/WhatsAppFloatingCTA';
 import { Footer } from '../components/footer';
 import { Modal } from '../components/ui/Modal';
+import { Footprints, Sparkles } from 'lucide-react';
 
 const INITIAL_FILTERS: FilterState = {
   search: '',
@@ -22,6 +26,19 @@ const INITIAL_FILTERS: FilterState = {
   colors: [],
   maxPrice: 1500,
 };
+
+const CATEGORIES_PILLS: (ProductCategory | 'Todas')[] = [
+  'Todas',
+  'Tênis',
+  'Sapato Social',
+  'Scarpin',
+  'Rasteira',
+  'Sandália',
+  'Bota',
+  'Polos',
+  'Bonés',
+  'Perfumes',
+];
 
 export default function StorePage() {
   const { products } = useStore();
@@ -100,25 +117,70 @@ export default function StorePage() {
     setSelectedCategoryHero('Todas');
   };
 
+  const handleSelectDepartment = (dept: Department) => {
+    setFilters(prev => ({
+      ...prev,
+      departments: [dept],
+    }));
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 relative">
+      {/* Top Header with Search and Actions */}
       <StoreHeader
         searchQuery={filters.search}
         onSearchChange={(q) => setFilters(prev => ({ ...prev, search: q }))}
         onToggleMobileFilter={() => setIsMobileFilterOpen(true)}
       />
 
-      <StoreHero
-        selectedCategory={selectedCategoryHero}
-        onSelectCategory={(cat) => {
-          setSelectedCategoryHero(cat);
-          if (cat !== 'Todas') {
-            setFilters(prev => ({ ...prev, categories: [] }));
-          }
-        }}
-      />
+      {/* Main High-Converting Visual Hero Banner */}
+      <StoreHero />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Trust & Advantages Bar */}
+      <TrustBar />
+
+      {/* Visual Category / Department Showcase Cards */}
+      <CategoryShowcase onSelectDepartment={handleSelectDepartment} />
+
+      {/* High-Converting Intermediate WhatsApp CTA Banner */}
+      <WhatsAppBannerCTA />
+
+      {/* Products Catalog Grid with Integrated Filters */}
+      <main id="catalogo-grade" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Category Pills Bar (Positioned directly on top of the catalog) */}
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full py-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-1">
+              <Footprints className="w-4 h-4 text-brand-primary" />
+              <span>Categorias:</span>
+            </span>
+
+            {CATEGORIES_PILLS.map(category => {
+              const isSelected = selectedCategoryHero === category;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategoryHero(category);
+                    if (category !== 'Todas') {
+                      setFilters(prev => ({ ...prev, categories: [] }));
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? 'bg-brand-primary text-white shadow-sm ring-2 ring-brand-gold/60'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {category}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Catalog Main Body */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           <div className="w-full lg:w-72 shrink-0 hidden lg:block sticky top-24">
             <FilterSidebar
@@ -140,19 +202,23 @@ export default function StorePage() {
         </div>
       </main>
 
+      {/* Footer */}
       <Footer />
 
       {/* Floating Sticky WhatsApp Widget */}
       <WhatsAppFloatingCTA />
 
+      {/* Product Detail Modal */}
       <ProductDetailModal
         product={selectedProduct}
         isOpen={!!selectedProduct}
         onClose={() => setSelectedProduct(null)}
       />
 
+      {/* Quotation Cart Drawer */}
       <CartDrawer />
 
+      {/* Mobile Filter Modal */}
       <Modal
         isOpen={isMobileFilterOpen}
         onClose={() => setIsMobileFilterOpen(false)}

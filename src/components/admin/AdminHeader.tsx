@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Store, Package, CreditCard, ShoppingCart, Cloud, CloudOff, LogOut, Crown, UserCheck } from 'lucide-react';
+import { Store, Package, CreditCard, ShoppingCart, Cloud, CloudOff, LogOut, Crown, UserCheck, Image as ImageIcon } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Button } from '../ui/Button';
 import { StoreLogo } from '../ui/StoreLogo';
@@ -11,9 +11,10 @@ import { getStoredAuthSession, logoutAdminSession, AuthRole } from './AdminAuthG
 interface AdminHeaderProps {
   activeTab: 'inventory' | 'financial' | 'sales';
   onTabChange: (tab: 'inventory' | 'financial' | 'sales') => void;
+  onOpenBannersModal?: () => void;
 }
 
-export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => {
+export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange, onOpenBannersModal }) => {
   const { products, bills, sales, isCloudConnected } = useStore();
   const [role, setRole] = useState<AuthRole>(null);
 
@@ -140,8 +141,23 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
           </button>
         </div>
 
-        {/* Action Buttons: Store & Logout */}
+        {/* Action Buttons: Banners, Store & Logout */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Custom Banners Management Button */}
+          {onOpenBannersModal && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onOpenBannersModal}
+              className="border-slate-700 text-brand-gold hover:bg-slate-800 hover:text-white shrink-0 text-xs px-2.5"
+              title="Personalizar Banners e Imagens da Loja"
+              icon={<ImageIcon className="w-3.5 h-3.5 text-brand-gold" />}
+            >
+              <span className="hidden sm:inline">Banners</span>
+            </Button>
+          )}
+
           {/* Back to Public Store Button */}
           <Link href="/">
             <Button

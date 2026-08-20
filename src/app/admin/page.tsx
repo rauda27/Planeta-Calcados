@@ -11,6 +11,7 @@ import { ProductFormModal } from '../../components/admin/ProductFormModal';
 import { FinancialDashboard } from '../../components/admin/FinancialDashboard';
 import { BillsTable } from '../../components/admin/BillsTable';
 import { BillFormModal } from '../../components/admin/BillFormModal';
+import { StoreBannersModal } from '../../components/admin/StoreBannersModal';
 import { POSModule } from '../../components/admin/POSModule';
 import { Footer } from '../../components/footer';
 import { useStore } from '../../context/StoreContext';
@@ -37,6 +38,9 @@ function AdminContent() {
   const [financialFilter, setFinancialFilter] = useState<'hoje' | 'proximos' | 'vencidos' | 'pagos' | 'todos'>('hoje');
   const [isBillModalOpen, setIsBillModalOpen] = useState(false);
 
+  // Banners Customizer Modal State
+  const [isBannersModalOpen, setIsBannersModalOpen] = useState(false);
+
   const handleOpenProductModal = (product?: Product) => {
     setEditingProduct(product || null);
     setIsProductModalOpen(true);
@@ -57,6 +61,7 @@ function AdminContent() {
         <AdminHeader
           activeTab={activeERPTab}
           onTabChange={setActiveERPTab}
+          onOpenBannersModal={() => setIsBannersModalOpen(true)}
         />
 
         {/* Main ERP Body */}
@@ -112,6 +117,12 @@ function AdminContent() {
         <BillFormModal
           isOpen={isBillModalOpen}
           onClose={() => setIsBillModalOpen(false)}
+        />
+
+        {/* Store Banners Customizer Modal */}
+        <StoreBannersModal
+          isOpen={isBannersModalOpen}
+          onClose={() => setIsBannersModalOpen(false)}
         />
       </div>
     </AdminAuthGuard>

@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ShoppingBag, Eye, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { getWhatsAppUrl } from '../../lib/constants';
 
 interface ProductCardProps {
   product: Product;
@@ -25,10 +26,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
   const hasDiscount = !!(product.promoPrice && product.promoPrice < product.salePrice);
   const displayPrice = product.promoPrice || product.salePrice;
 
-  const STORE_PHONE = '5541991543389';
-  const directWhatsappUrl = `https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(
-    `Olá, Planeta Calçados QB! Gostaria de cotar o produto: ${product.name} (${product.brand}) - R$ ${displayPrice.toFixed(2).replace('.', ',')}`
-  )}`;
+  const directWhatsappUrl = getWhatsAppUrl(
+    `Olá, Planeta Calçados QB! Gostaria de cotar o produto: ${product.name} (Marca: ${product.brand} | SKU: ${product.sku}) - R$ ${displayPrice.toFixed(2).replace('.', ',')}`
+  );
 
   return (
     <Card className="group flex flex-col h-full hover:border-brand-primary/40 transition-all duration-300 shadow-soft hover:shadow-lg">

@@ -7,6 +7,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { useStore } from '../../context/StoreContext';
 import { ShoppingBag, Check, ShieldAlert, Heart, Share2, Sparkles, MessageSquare } from 'lucide-react';
+import { getWhatsAppUrl } from '../../lib/constants';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -313,9 +314,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Direct High-Converting WhatsApp CTA Button */}
             {selectedSize && currentStock > 0 && (
               <a
-                href={`https://wa.me/5541991543389?text=${encodeURIComponent(
-                  `Olá, Planeta Calçados QB! Quero cotar/comprar o produto:\n- ${product.name} (${product.brand})\n- Tamanho: ${selectedSize}\n- Cor: ${selectedColor}\n- Quantidade: ${quantity}x\n- Valor: R$ ${(displayPrice * quantity).toFixed(2).replace('.', ',')}`
-                )}`}
+                href={getWhatsAppUrl(
+                  `Olá, Planeta Calçados QB! Quero cotar/comprar o produto:\n- ${product.name} (Marca: ${product.brand} | SKU: ${product.sku})\n- Tamanho: ${selectedSize}\n- Cor: ${selectedColor}\n- Quantidade: ${quantity}x\n- Valor: R$ ${(displayPrice * quantity).toFixed(2).replace('.', ',')}`
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-emerald transition-all duration-200 cursor-pointer text-center"

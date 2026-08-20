@@ -1,7 +1,15 @@
 'use client';
 
 import React from 'react';
-import { Phone, MapPin, Mail, Clock, CreditCard, ShieldCheck, Star } from 'lucide-react';
+import { Phone, MapPin, Mail, Clock, CreditCard, ShieldCheck, Star, Instagram } from 'lucide-react';
+import {
+  getWhatsAppUrl,
+  STORE_PHONE_FORMATTED,
+  STORE_EMAIL,
+  STORE_INSTAGRAM_URL,
+  STORE_INSTAGRAM_HANDLE,
+  STORE_ADDRESS,
+} from '../lib/constants';
 
 export const Footer: React.FC = () => {
   return (
@@ -63,17 +71,33 @@ export const Footer: React.FC = () => {
               <li className="flex items-center gap-2 pt-1">
                 <Phone className="w-3.5 h-3.5 text-brand-gold shrink-0" />
                 <a
-                  href="https://wa.me/5541991543389?text=Ol%C3%A1%2C%20Planeta%20Cal%C3%A7ados%20QB!%20Gostaria%20de%20tirar%20uma%20d%C3%BAvida."
+                  href={getWhatsAppUrl('Olá, Planeta Calçados QB! Gostaria de tirar uma dúvida.')}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-brand-gold transition-colors"
                 >
-                  (41) 99154-3389 (WhatsApp)
+                  {STORE_PHONE_FORMATTED} (WhatsApp)
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Instagram className="w-3.5 h-3.5 text-brand-gold shrink-0" />
+                <a
+                  href={STORE_INSTAGRAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-brand-gold transition-colors font-medium text-slate-300"
+                >
+                  {STORE_INSTAGRAM_HANDLE} (Instagram)
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-brand-gold shrink-0" />
-                <span>contato@planetacalcados4b.com.br</span>
+                <a
+                  href={`mailto:${STORE_EMAIL}`}
+                  className="hover:text-brand-gold transition-colors text-slate-300"
+                >
+                  {STORE_EMAIL}
+                </a>
               </li>
             </ul>
           </div>
