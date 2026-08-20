@@ -56,6 +56,14 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+export const useStore = (): StoreContextType => {
+  const context = useContext(StoreContext);
+  if (!context) {
+    throw new Error('useStore must be used within a StoreProvider');
+  }
+  return context;
+};
+
 const STORAGE_KEYS = {
   PRODUCTS: 'planeta_products',
   BILLS: 'planeta_bills',
@@ -791,14 +799,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       {children}
     </StoreContext.Provider>
   );
-};
-
-export const useStore = (): StoreContextType => {
-  const context = useContext(StoreContext);
-  if (!context) {
-    throw new Error('useStore must be used within a StoreProvider');
-  }
-  return context;
 };
 
 export default useStore;
