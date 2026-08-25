@@ -64,12 +64,14 @@ export interface Product {
   name: string;
   brand: string;
   model: string;
+  supplierId?: string;
+  supplierName?: string;
   department: Department;
   gender: ShoeGender;
   category: ProductCategory;
   collection: string;
-  material: string; // e.g. "Couro Legítimo", "Algodão 100%", "Essência Importada"
-  soleType?: string; // e.g. "EVA Confort", "N/A"
+  material: string;
+  soleType?: string;
   
   // Pricing
   costPrice: number;
@@ -98,6 +100,92 @@ export interface StoreBanners {
   mascBannerImage: string;
   acessoriosBannerImage: string;
 }
+
+// -------------------------------------------------------------
+// CLIENTES & FORNECEDORES
+// -------------------------------------------------------------
+
+export interface Customer {
+  id: string;
+  name: string;
+  cpfCnpj: string;
+  phone?: string;
+  mobile: string; // WhatsApp
+  email?: string;
+  address?: string;
+  bairro?: string;
+  city?: string;
+  uf?: string;
+  cep?: string;
+  creditLimit: number;
+  totalSpent?: number;
+  notes?: string;
+  status: 'active' | 'blocked';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Supplier {
+  id: string;
+  tradeName: string; // Razão Social / Nome Fantasia
+  corporateName?: string;
+  cnpjCpf: string;
+  phone: string;
+  mobile?: string;
+  contactPerson?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  uf?: string;
+  cep?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// -------------------------------------------------------------
+// NOTA PROMISSÓRIA & GESTÃO DE DEVEDORES (CONTRATOS E PARCELAS)
+// -------------------------------------------------------------
+
+export type InstallmentStatus = 'pending' | 'paid' | 'overdue';
+
+export interface PromissoryInstallment {
+  id: string;
+  documentNumber: string; // Ex: 50029266
+  installmentNumber: number; // Ex: 1
+  totalInstallments: number; // Ex: 3 (exibe 1/3)
+  issueDate: string; // YYYY-MM-DD
+  dueDate: string; // YYYY-MM-DD
+  amount: number; // Valor da Parcela
+  correctedAmount?: number; // Vr. Corrigido com juros/mora
+  paidDate?: string; // Data Pagamento
+  paidAmount?: number; // Vlr. Pago
+  receivingLocation?: string; // Local Recebimento (ex: Balcão Quatro Barras)
+  status: InstallmentStatus;
+}
+
+export interface PromissoryContract {
+  id: string;
+  contractNumber: string; // Ex: pLA4pGQtNL ou 229717511
+  saleId: string;
+  saleCode: string; // Ex: VENDA-1042
+  customerId?: string;
+  customerName: string;
+  customerCpfCnpj: string;
+  customerPhone?: string;
+  customerMobile?: string;
+  totalSaleAmount: number;
+  totalPaidAmount: number;
+  totalUnpaidAmount: number;
+  installments: PromissoryInstallment[];
+  status: 'pending' | 'partial' | 'paid' | 'overdue';
+  createdAt: string;
+  updatedAt: string;
+}
+
+// -------------------------------------------------------------
+// CONTAS A PAGAR (BOLETOS)
+// -------------------------------------------------------------
 
 export type BillCategory = 
   | 'Estoque' 
@@ -157,16 +245,19 @@ export type PaymentMethod =
 export type SaleStatus = 'completed' | 'promissory_pending' | 'cancelled';
 
 export interface PromissoryDetails {
+  contractNumber?: string;
   customerName: string;
   customerCpf: string;
   customerPhone: string;
   dueDate: string;
   installments: number;
+  installmentDetails?: PromissoryInstallment[];
   isPaid: boolean;
   paidAt?: string;
 }
 
 export interface CustomerInfo {
+  id?: string;
   name: string;
   cpf: string;
   phone: string;

@@ -1,21 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Product, ProductVariant, PaymentMethod, SaleItem, CustomerInfo } from '../../types';
+import React, { useState, useEffect } from 'react';
+import {
+  Product,
+  ProductVariant,
+  PaymentMethod,
+  SaleItem,
+  CustomerInfo,
+  Customer,
+  PromissoryInstallment,
+} from '../../types';
 import { useStore } from '../../context/StoreContext';
+import { CustomerFormModal } from './CustomerFormModal';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
-import { Search, ShoppingBag, Plus, Minus, Trash2, CreditCard, DollarSign, QrCode, FileText, CheckCircle2, ShieldAlert, UserCheck, ArrowRight, Percent } from 'lucide-react';
+import {
+  Search,
+  ShoppingBag,
+  Plus,
+  Minus,
+  Trash2,
+  CreditCard,
+  DollarSign,
+  QrCode,
+  FileText,
+  CheckCircle2,
+  ShieldAlert,
+  UserCheck,
+  ArrowRight,
+  UserPlus,
+  Calendar,
+} from 'lucide-react';
 
 interface POSFrontDeskProps {
   onSaleSuccess: (completedSale: any) => void;
 }
 
 export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => {
-  const { products, addSale } = useStore();
+  const { products, addSale, customers } = useStore();
 
   // Search & Product Selection State
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,16 +55,21 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
   const [discountValue, setDiscountValue] = useState<number>(0);
 
   // Customer State
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [customerCpf, setCustomerCpf] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [isNewCustomerModalOpen, setIsNewCustomerModalOpen] = useState(false);
 
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('money');
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [creditInstallments, setCreditInstallments] = useState<number>(1);
-  const [promissoryDueDate, setPromissoryDueDate] = useState<string>('2026-09-10');
+
+  // Promissory Installments State
+  const [promissoryNumInstallments, setPromissoryNumInstallments] = useState<number>(1);
+  const [promissoryInstallmentsList, setPromissoryInstallmentsList] = useState<PromissoryInstallment[]>([]);
 
   // Filter products for search dropdown
   const filteredProducts = searchTerm.trim() === ''
@@ -47,9 +77,48 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
     : products.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.mainEan.includes(searchTerm) ||
-        p.variants.some(v => v.ean.includes(searchTerm))
-      ).slice(0, 5);
+        (p.mainEan && p.mainEan.includes(searchTerm)) ||
+        p.variants.some(v => 
+          (v.ean && v.ean.includes(searchTerm)) ||
+          `${p.sku}-${v.size}`.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      ).slice(0, 6);
+
+  // Optical Barcode Scanner instant match on Enter
+  const handleBarcodeSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const term = searchTerm.trim().toLowerCase();
+      if (!term) return;
+
+      // 1. Check exact variant barcode match (e.g. 26001-38 or EAN)
+      for (const p of products) {
+        for (const v of p.variants) {
+          const variantBarcode = `${p.sku}-${v.size}`.toLowerCase();
+          if (v.ean?.toLowerCase() === term || variantBarcode === term) {
+            setSelectedProduct(p);
+            setSelectedColor(v.color);
+            setSelectedVariant(v);
+            setItemQuantity(1);
+            setSearchTerm('');
+            return;
+          }
+        }
+      }
+
+      // 2. Check exact SKU match (e.g. 26001)
+      const exactSkuProduct = products.find(p => p.sku.toLowerCase() === term);
+      if (exactSkuProduct) {
+        handleSelectProduct(exactSkuProduct);
+        return;
+      }
+
+      // 3. Fallback to first filtered match
+      if (filteredProducts.length > 0) {
+        handleSelectProduct(filteredProducts[0]);
+      }
+    }
+  };
 
   // Product selected from search
   const handleSelectProduct = (product: Product) => {
@@ -127,33 +196,98 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
 
   const handleUpdateCartQty = (variantId: string, delta: number) => {
     setCartItems(prev =>
-      prev.map(item => {
-        if (item.variantId === variantId) {
-          const newQty = Math.max(1, item.quantity + delta);
-          return { ...item, quantity: newQty, total: item.unitPrice * newQty };
-        }
-        return item;
-      })
+      prev
+        .map(item => {
+          if (item.variantId === variantId) {
+            const newQty = item.quantity + delta;
+            if (newQty <= 0) return null;
+            return {
+              ...item,
+              quantity: newQty,
+              total: item.unitPrice * newQty,
+            };
+          }
+          return item;
+        })
+        .filter(Boolean) as SaleItem[]
     );
   };
 
-  // Financial Calculations
-  const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0);
-
-  const calculatedDiscount = discountType === 'percent'
-    ? (subtotal * discountValue) / 100
-    : Math.min(subtotal, discountValue);
+  // Financial calculations
+  const subtotal = cartItems.reduce((sum, i) => sum + i.total, 0);
+  
+  let calculatedDiscount = 0;
+  if (discountType === 'fixed') {
+    calculatedDiscount = Math.min(subtotal, Math.max(0, discountValue));
+  } else {
+    calculatedDiscount = Math.min(subtotal, (subtotal * Math.max(0, discountValue)) / 100);
+  }
 
   const totalAmount = Math.max(0, subtotal - calculatedDiscount);
-  const changeAmount = paymentMethod === 'money' ? Math.max(0, cashReceived - totalAmount) : 0;
+  const changeAmount = paymentMethod === 'money' && cashReceived > totalAmount ? cashReceived - totalAmount : 0;
 
-  // Open Payment Modal
-  const handleOpenPayment = () => {
-    if (cartItems.length === 0) {
-      alert('Adicione pelo menos um item ao carrinho do PDV.');
+  // Auto-generate installments when totalAmount or promissoryNumInstallments change
+  useEffect(() => {
+    if (totalAmount <= 0) {
+      setPromissoryInstallmentsList([]);
       return;
     }
-    setCashReceived(Math.ceil(totalAmount));
+
+    const n = Math.max(1, promissoryNumInstallments);
+    const baseInstallmentValue = Number((totalAmount / n).toFixed(2));
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    const generated: PromissoryInstallment[] = [];
+    for (let i = 1; i <= n; i++) {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30 * i);
+      const docNumber = `50${Math.floor(100000 + Math.random() * 900000)}`;
+
+      // Adjust last installment cents rounding
+      const val = i === n
+        ? Number((totalAmount - baseInstallmentValue * (n - 1)).toFixed(2))
+        : baseInstallmentValue;
+
+      generated.push({
+        id: `inst_${Date.now()}_${i}`,
+        documentNumber: docNumber,
+        installmentNumber: i,
+        totalInstallments: n,
+        issueDate: todayStr,
+        dueDate: dueDate.toISOString().split('T')[0],
+        amount: val,
+        status: 'pending',
+      });
+    }
+
+    setPromissoryInstallmentsList(generated);
+  }, [totalAmount, promissoryNumInstallments]);
+
+  // Handle Customer Selection from Dropdown
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    if (!customerId) {
+      setCustomerName('');
+      setCustomerCpf('');
+      setCustomerPhone('');
+      return;
+    }
+
+    const found = customers.find(c => c.id === customerId);
+    if (found) {
+      setCustomerName(found.name);
+      setCustomerCpf(found.cpfCnpj);
+      setCustomerPhone(found.mobile || found.phone || '');
+    }
+  };
+
+  const handleOpenPayment = () => {
+    if (cartItems.length === 0) {
+      alert('Adicione pelo menos um item ao carrinho.');
+      return;
+    }
+    setCashReceived(totalAmount);
     setIsPaymentModalOpen(true);
   };
 
@@ -161,12 +295,29 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
   const handleFinalizeSale = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (paymentMethod === 'promissory_note' && (!customerName.trim() || !customerCpf.trim())) {
-      alert('Para Nota Promissória, o Nome e CPF/CNPJ do cliente são OBRIGATÓRIOS.');
+    if (paymentMethod === 'money' && cashReceived < totalAmount) {
+      alert('O valor em dinheiro recebido não pode ser menor que o total da venda.');
       return;
     }
 
-    const salePayload = {
+    if (paymentMethod === 'promissory_note') {
+      if (!customerName.trim() || !customerCpf.trim()) {
+        alert('Para vendas no Crediário / Nota Promissória, é obrigatório preencher o Nome e CPF do cliente.');
+        return;
+      }
+    }
+
+    let customerInfo: CustomerInfo | undefined = undefined;
+    if (customerName.trim()) {
+      customerInfo = {
+        id: selectedCustomerId || undefined,
+        name: customerName.trim(),
+        cpf: customerCpf.trim() || 'NÃO INFORMADO',
+        phone: customerPhone.trim() || '',
+      };
+    }
+
+    const completedSale = addSale({
       items: cartItems,
       subtotal,
       discount: calculatedDiscount,
@@ -176,223 +327,291 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
         cashReceived: paymentMethod === 'money' ? cashReceived : undefined,
         change: paymentMethod === 'money' ? changeAmount : undefined,
         creditInstallments: paymentMethod === 'credit_card' ? creditInstallments : undefined,
-        promissory: paymentMethod === 'promissory_note' ? {
-          customerName,
-          customerCpf,
-          customerPhone,
-          dueDate: promissoryDueDate,
-          installments: 1,
-          isPaid: false,
-        } : undefined,
+        promissory:
+          paymentMethod === 'promissory_note'
+            ? {
+                customerName: customerName.trim(),
+                customerCpf: customerCpf.trim(),
+                customerPhone: customerPhone.trim(),
+                dueDate: promissoryInstallmentsList[0]?.dueDate || '30 dias',
+                installments: promissoryNumInstallments,
+                installmentDetails: promissoryInstallmentsList,
+                isPaid: false,
+              }
+            : undefined,
       },
-      customer: (customerName || customerCpf || customerPhone) ? {
-        name: customerName,
-        cpf: customerCpf,
-        phone: customerPhone,
-      } : undefined,
-      status: paymentMethod === 'promissory_note' ? ('promissory_pending' as const) : ('completed' as const),
-    };
+      customer: customerInfo,
+      status: paymentMethod === 'promissory_note' ? 'promissory_pending' : 'completed',
+    });
 
-    // Add sale to store and trigger stock deduction
-    const createdSale = addSale(salePayload);
-
-    // Reset POS form
+    // Reset local state
     setCartItems([]);
     setDiscountValue(0);
+    setSelectedCustomerId('');
     setCustomerName('');
     setCustomerCpf('');
     setCustomerPhone('');
     setIsPaymentModalOpen(false);
 
-    // Trigger parent to open receipt modal
-    onSaleSuccess(createdSale);
+    // Call parent handler to show receipt modal
+    onSaleSuccess(completedSale);
   };
 
-  const formatBRL = (val: number) => `R$ ${val.toFixed(2).replace('.', ',')}`;
+  const formatBRL = (val: number) => `R$ ${Number(val || 0).toFixed(2).replace('.', ',')}`;
+
+  const selectedCustomerObj = customers.find(c => c.id === selectedCustomerId);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      {/* Left Column: Product Search & Variant Picker (7 Cols) */}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Left Column: Product Search, Catalog Selector & Customer Details (7 Cols) */}
       <div className="lg:col-span-7 space-y-6">
-        <Card className="p-5 overflow-visible">
-          <h3 className="font-extrabold text-slate-900 text-base mb-1 flex items-center gap-2">
-            <Search className="w-4 h-4 text-brand-primary" />
-            Localizar Produto (Nome, SKU ou EAN)
-          </h3>
-          <p className="text-xs text-slate-500 mb-4">
-            Digite o nome do produto ou escaneie o código de barras no leitor
-          </p>
-
-          <div className="relative z-30">
+        {/* Product Quick Search Bar */}
+        <Card className="p-5 border-brand-primary/20">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
+            Pesquisar Calçado / Produto (Nome, SKU ou Código de Barras):
+          </label>
+          <div className="relative">
+            <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Digite para buscar calçados, roupas, acessórios, perfumes..."
+              placeholder="Digite o modelo, SKU (ex: 26001) ou bipe o leitor de código de barras..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="text-sm py-2.5 shadow-xs"
+              onKeyDown={handleBarcodeSearchKeyDown}
+              className="pl-11 h-12 text-sm font-medium"
               autoFocus
             />
-
-            {/* Dropdown Suggestions */}
-            {filteredProducts.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                {filteredProducts.map(product => (
-                  <div
-                    key={product.id}
-                    onClick={() => handleSelectProduct(product)}
-                    className="p-3 hover:bg-emerald-50/60 transition-colors cursor-pointer flex items-center gap-3"
-                  >
-                    <img
-                      src={product.images?.[0] || 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&auto=format&fit=crop&q=60'}
-                      alt=""
-                      className="w-10 h-10 rounded-lg object-cover bg-slate-100 border shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-slate-900 text-xs truncate">{product.name}</div>
-                      <div className="text-[11px] text-slate-500">{product.brand} • SKU: {product.sku}</div>
-                    </div>
-                    <span className="font-bold text-brand-primary text-xs shrink-0">
-                      {formatBRL(product.promoPrice || product.salePrice)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Product Variant Picker Box */}
-          {selectedProduct && (
-            <div className="mt-5 p-4 rounded-xl bg-slate-50 border border-brand-primary/20 space-y-4 animate-in fade-in">
-              <div className="flex items-start gap-3">
+          {/* Search Autocomplete Results Dropdown */}
+          {filteredProducts.length > 0 && (
+            <div className="mt-2 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden divide-y divide-slate-100 z-30 relative animate-in fade-in-50">
+              {filteredProducts.map(product => {
+                const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+                const displayPrice = product.promoPrice || product.salePrice;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handleSelectProduct(product)}
+                    className="w-full p-3 text-left hover:bg-slate-50 flex items-center justify-between gap-3 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
+                        className="w-10 h-10 object-cover rounded-lg bg-slate-100 border border-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 text-xs truncate">{product.name}</div>
+                        <div className="text-[11px] text-slate-500">
+                          {product.brand} • SKU: <strong>{product.sku}</strong> • {product.department}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="font-extrabold text-brand-primary text-xs">{formatBRL(displayPrice)}</div>
+                      <div className={`text-[10px] font-bold ${totalStock > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                        {totalStock > 0 ? `${totalStock} em estoque` : 'Sem Estoque'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        {/* Selected Product Configuration Box */}
+        {selectedProduct && (
+          <Card className="p-5 border-2 border-brand-primary bg-white animate-in slide-in-from-top-3">
+            <div className="flex items-start justify-between gap-4 pb-3 border-b border-slate-100">
+              <div className="flex gap-3 min-w-0">
                 <img
-                  src={selectedProduct.images?.[0] || 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&auto=format&fit=crop&q=60'}
-                  alt=""
-                  className="w-16 h-16 rounded-xl object-cover border border-slate-200 bg-white"
+                  src={selectedProduct.images[0]}
+                  alt={selectedProduct.name}
+                  className="w-16 h-16 object-cover rounded-xl border border-slate-200 shrink-0"
                 />
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <Badge variant="emerald">{selectedProduct.brand}</Badge>
-                    <button type="button" onClick={() => setSelectedProduct(null)} className="text-xs text-slate-400 hover:text-slate-600">✕ Cancelar</button>
+                <div className="min-w-0">
+                  <Badge variant="gold" className="text-[10px] mb-1">{selectedProduct.department}</Badge>
+                  <h3 className="font-extrabold text-slate-900 text-sm">{selectedProduct.name}</h3>
+                  <p className="text-xs text-slate-500">Marca: {selectedProduct.brand} | SKU: {selectedProduct.sku}</p>
+                </div>
+              </div>
+
+              <div className="text-right shrink-0">
+                <div className="text-lg font-black text-brand-primary">
+                  {formatBRL(selectedProduct.promoPrice || selectedProduct.salePrice)}
+                </div>
+                {selectedProduct.promoPrice && (
+                  <div className="text-xs text-slate-400 line-through">
+                    {formatBRL(selectedProduct.salePrice)}
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm mt-1">{selectedProduct.name}</h4>
-                  <span className="text-base font-extrabold text-brand-primary">
-                    {formatBRL(selectedProduct.promoPrice || selectedProduct.salePrice)}
-                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Colors Selection */}
+            <div className="space-y-3 pt-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Selecione a Cor:</label>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(new Set(selectedProduct.variants.map(v => v.color))).map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleColorChange(color)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                        selectedColor === color
+                          ? 'bg-brand-primary text-white border-brand-primary shadow-xs'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Color Selector */}
+              {/* Sizes Grid */}
               <div>
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                  1. Selecione a Cor:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {Array.from(new Set(selectedProduct.variants.map(v => v.color))).map(color => {
-                    const isSelected = selectedColor === color;
-                    return (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => handleColorChange(color)}
-                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
-                          isSelected ? 'bg-brand-primary text-white border-brand-primary shadow-xs' : 'bg-white text-slate-800 border-slate-200'
-                        }`}
-                      >
-                        {color}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Size Matrix Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                  2. Selecione o Tamanho / Variação:
-                </label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Selecione a Numeração / Tamanho:</label>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                   {selectedProduct.variants
                     .filter(v => v.color === selectedColor)
                     .map(variant => {
                       const isSelected = selectedVariant?.id === variant.id;
-                      const isAvailable = variant.stock > 0;
+                      const hasStock = variant.stock > 0;
                       return (
                         <button
                           key={variant.id}
                           type="button"
-                          disabled={!isAvailable}
+                          disabled={!hasStock}
                           onClick={() => setSelectedVariant(variant)}
-                          className={`px-3 py-2 rounded-xl border text-xs font-bold flex flex-col items-center cursor-pointer min-w-[50px] ${
-                            !isAvailable
-                              ? 'opacity-40 bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
-                              : isSelected
-                              ? 'bg-brand-primary text-white border-brand-primary shadow-sm ring-2 ring-brand-gold/40'
-                              : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300'
+                          className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-brand-primary text-white border-brand-primary ring-2 ring-brand-gold/70'
+                              : hasStock
+                              ? 'bg-white text-slate-800 border-slate-200 hover:border-slate-400'
+                              : 'bg-slate-100 text-slate-400 border-slate-200 opacity-50 cursor-not-allowed'
                           }`}
                         >
-                          <span>{variant.size}</span>
-                          <span className={`text-[9px] font-normal ${isSelected ? 'text-brand-gold' : 'text-slate-400'}`}>
-                            {variant.stock} un
-                          </span>
+                          <div className="font-extrabold text-xs">{variant.size}</div>
+                          <div className={`text-[10px] font-medium ${isSelected ? 'text-brand-gold' : hasStock ? 'text-emerald-700' : 'text-rose-500'}`}>
+                            {hasStock ? `${variant.stock} un` : 'Esgotado'}
+                          </div>
                         </button>
                       );
                     })}
                 </div>
               </div>
 
-              {/* Quantity & Add to Cart Button */}
-              {selectedVariant && (
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-700">Qtd:</span>
-                    <div className="flex items-center border border-slate-200 rounded-lg bg-white">
-                      <button type="button" onClick={() => setItemQuantity(q => Math.max(1, q - 1))} className="px-2.5 py-1 text-slate-600 font-bold">-</button>
-                      <span className="px-3 text-xs font-bold">{itemQuantity}</span>
-                      <button type="button" onClick={() => setItemQuantity(q => Math.min(selectedVariant.stock, q + 1))} className="px-2.5 py-1 text-slate-600 font-bold">+</button>
-                    </div>
-                  </div>
-
-                  <Button
+              {/* Quantity & Add Button */}
+              <div className="flex items-center gap-4 pt-3 border-t border-slate-100">
+                <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
+                  <button
                     type="button"
-                    variant="gold"
-                    onClick={handleAddItemToCart}
-                    disabled={selectedVariant.stock <= 0}
-                    icon={<Plus className="w-4 h-4 text-slate-950" />}
+                    onClick={() => setItemQuantity(prev => Math.max(1, prev - 1))}
+                    className="p-1.5 rounded-lg hover:bg-white text-slate-700 transition-colors cursor-pointer"
                   >
-                    Adicionar ao PDV
-                  </Button>
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="w-10 text-center font-black text-sm text-slate-900">{itemQuantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setItemQuantity(prev => (selectedVariant ? Math.min(selectedVariant.stock, prev + 1) : prev + 1))}
+                    className="p-1.5 rounded-lg hover:bg-white text-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="flex-1 shadow-md py-3"
+                  onClick={handleAddItemToCart}
+                  disabled={!selectedVariant || selectedVariant.stock <= 0}
+                  icon={<ShoppingBag className="w-4 h-4 text-white" />}
+                >
+                  Adicionar ao Caixa • {formatBRL((selectedProduct.promoPrice || selectedProduct.salePrice) * itemQuantity)}
+                </Button>
+              </div>
             </div>
-          )}
-        </Card>
+          </Card>
+        )}
 
-        {/* Customer Identification Card */}
+        {/* Customer Identification Card with Autocomplete & Quick Register */}
         <Card className="p-5">
-          <h3 className="font-extrabold text-slate-900 text-sm mb-3 flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-brand-primary" />
-            Identificação do Cliente (Opcional / Obrigatório para Promissória)
-          </h3>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+            <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-brand-primary" />
+              <span>Cliente Vinculado (Obrigatório para Nota Promissória)</span>
+            </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input
-              label="Nome do Cliente"
-              value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
-              placeholder="Ex: Carlos Silva"
-            />
-            <Input
-              label="CPF / CNPJ"
-              value={customerCpf}
-              onChange={e => setCustomerCpf(e.target.value)}
-              placeholder="000.000.000-00"
-            />
-            <Input
-              label="Telefone / WhatsApp"
-              value={customerPhone}
-              onChange={e => setCustomerPhone(e.target.value)}
-              placeholder="(41) 99154-3389"
-            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsNewCustomerModalOpen(true)}
+              icon={<UserPlus className="w-3.5 h-3.5 text-brand-primary" />}
+              className="text-xs py-1 px-2.5"
+            >
+              + Novo Cliente
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Selecionar Cliente Cadastrado:
+              </label>
+              <select
+                value={selectedCustomerId}
+                onChange={e => handleCustomerChange(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              >
+                <option value="">-- Cliente Avulso / Consumidor Final --</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} • CPF: {c.cpfCnpj} • Limite: {formatBRL(c.creditLimit)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input
+                label="Nome do Cliente"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                placeholder="Ex: Sandra Cristina dos Santos"
+              />
+              <Input
+                label="CPF / CNPJ"
+                value={customerCpf}
+                onChange={e => setCustomerCpf(e.target.value)}
+                placeholder="000.000.000-00"
+              />
+              <Input
+                label="Telefone / WhatsApp"
+                value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)}
+                placeholder="(41) 99154-3389"
+              />
+            </div>
+
+            {selectedCustomerObj && (
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                <span className="text-slate-600">
+                  Endereço: <strong>{selectedCustomerObj.address || 'Quatro Barras - PR'}</strong>
+                </span>
+                <span className="text-emerald-700 font-bold">
+                  Limite Disponível: {formatBRL(selectedCustomerObj.creditLimit)}
+                </span>
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -407,7 +626,7 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
                 Carrinho do PDV ({cartItems.reduce((acc, i) => acc + i.quantity, 0)} itens)
               </h3>
               {cartItems.length > 0 && (
-                <button type="button" onClick={() => setCartItems([])} className="text-xs text-rose-600 font-medium hover:underline">
+                <button type="button" onClick={() => setCartItems([])} className="text-xs text-rose-600 font-medium hover:underline cursor-pointer">
                   Esvaziar
                 </button>
               )}
@@ -427,21 +646,21 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-slate-900 truncate">{item.productName}</div>
                       <div className="text-[11px] text-slate-500">
-                        Tam: <strong>{item.selectedSize}</strong> | Cor: <strong>{item.selectedColor}</strong>
+                        SKU: {item.sku} | Tam: <strong>{item.selectedSize}</strong> | Cor: <strong>{item.selectedColor}</strong>
                       </div>
                       <div className="font-semibold text-brand-primary mt-0.5">{formatBRL(item.unitPrice)} cada</div>
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="flex items-center border border-slate-200 rounded bg-white">
-                        <button type="button" onClick={() => handleUpdateCartQty(item.variantId, -1)} className="px-1.5 py-0.5 text-slate-600">-</button>
+                        <button type="button" onClick={() => handleUpdateCartQty(item.variantId, -1)} className="px-1.5 py-0.5 text-slate-600 cursor-pointer">-</button>
                         <span className="px-2 font-bold">{item.quantity}</span>
-                        <button type="button" onClick={() => handleUpdateCartQty(item.variantId, 1)} className="px-1.5 py-0.5 text-slate-600">+</button>
+                        <button type="button" onClick={() => handleUpdateCartQty(item.variantId, 1)} className="px-1.5 py-0.5 text-slate-600 cursor-pointer">+</button>
                       </div>
 
                       <span className="font-bold text-slate-900 w-16 text-right">{formatBRL(item.total)}</span>
 
-                      <button type="button" onClick={() => handleRemoveCartItem(item.variantId)} className="text-slate-400 hover:text-rose-600">
+                      <button type="button" onClick={() => handleRemoveCartItem(item.variantId)} className="text-slate-400 hover:text-rose-600 cursor-pointer">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -461,14 +680,14 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
                   <button
                     type="button"
                     onClick={() => setDiscountType('fixed')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${discountType === 'fixed' ? 'bg-brand-primary text-white' : 'bg-slate-200 text-slate-700'}`}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer ${discountType === 'fixed' ? 'bg-brand-primary text-white' : 'bg-slate-200 text-slate-700'}`}
                   >
                     R$ Real
                   </button>
                   <button
                     type="button"
                     onClick={() => setDiscountType('percent')}
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${discountType === 'percent' ? 'bg-brand-primary text-white' : 'bg-slate-200 text-slate-700'}`}
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer ${discountType === 'percent' ? 'bg-brand-primary text-white' : 'bg-slate-200 text-slate-700'}`}
                   >
                     % Porcentagem
                   </button>
@@ -518,7 +737,7 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
               onClick={handleOpenPayment}
               icon={<ArrowRight className="w-5 h-5 text-slate-950" />}
             >
-              Ir para Pagamento • {formatBRL(totalAmount)}
+              Avançar para Pagamento ({formatBRL(totalAmount)})
             </Button>
           </div>
         </Card>
@@ -530,7 +749,7 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
         onClose={() => setIsPaymentModalOpen(false)}
         title="Forma de Pagamento — Frente de Caixa"
         subtitle={`Total da Venda: ${formatBRL(totalAmount)}`}
-        maxWidth="xl"
+        maxWidth="2xl"
       >
         <form onSubmit={handleFinalizeSale} className="space-y-6">
           {/* Payment Method Selector Grid */}
@@ -538,12 +757,12 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
             <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
               Selecione o Meio de Pagamento:
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <button
                 type="button"
                 onClick={() => setPaymentMethod('money')}
-                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-2 cursor-pointer ${
-                  paymentMethod === 'money' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300' : 'bg-white text-slate-800 border-slate-200'
+                className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
+                  paymentMethod === 'money' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <DollarSign className="w-5 h-5" />
@@ -553,8 +772,8 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
               <button
                 type="button"
                 onClick={() => setPaymentMethod('pix')}
-                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-2 cursor-pointer ${
-                  paymentMethod === 'pix' ? 'bg-teal-600 text-white border-teal-600 shadow-md ring-2 ring-teal-300' : 'bg-white text-slate-800 border-slate-200'
+                className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
+                  paymentMethod === 'pix' ? 'bg-teal-600 text-white border-teal-600 shadow-md ring-2 ring-teal-300' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <QrCode className="w-5 h-5" />
@@ -564,8 +783,8 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
               <button
                 type="button"
                 onClick={() => setPaymentMethod('credit_card')}
-                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-2 cursor-pointer ${
-                  paymentMethod === 'credit_card' ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-300' : 'bg-white text-slate-800 border-slate-200'
+                className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
+                  paymentMethod === 'credit_card' ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-300' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <CreditCard className="w-5 h-5" />
@@ -575,8 +794,8 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
               <button
                 type="button"
                 onClick={() => setPaymentMethod('debit_card')}
-                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-2 cursor-pointer ${
-                  paymentMethod === 'debit_card' ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-300' : 'bg-white text-slate-800 border-slate-200'
+                className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
+                  paymentMethod === 'debit_card' ? 'bg-blue-600 text-white border-blue-600 shadow-md ring-2 ring-blue-300' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <CreditCard className="w-5 h-5" />
@@ -586,12 +805,12 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
               <button
                 type="button"
                 onClick={() => setPaymentMethod('promissory_note')}
-                className={`p-3.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-2 cursor-pointer col-span-2 sm:col-span-1 ${
-                  paymentMethod === 'promissory_note' ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-300' : 'bg-white text-slate-800 border-slate-200'
+                className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all col-span-2 sm:col-span-1 ${
+                  paymentMethod === 'promissory_note' ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-300' : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <FileText className="w-5 h-5" />
-                <span>Nota Promissória</span>
+                <span>Promissória</span>
               </button>
             </div>
           </div>
@@ -632,45 +851,113 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
           )}
 
           {paymentMethod === 'promissory_note' && (
-            <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-3">
-              <div className="text-xs font-bold text-amber-900 uppercase">
-                ⚠️ Regra da Nota Promissória (Fiado/Crediário)
-              </div>
-              <p className="text-xs text-amber-800">
-                O comprovante gerado conterá a nota promissória legal pronta para colher a assinatura do cliente.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <Input
-                  label="Nome Completo do Cliente *"
-                  value={customerName}
-                  onChange={e => setCustomerName(e.target.value)}
-                  placeholder="Nome do pagador"
-                  required
-                />
-                <Input
-                  label="CPF / CNPJ do Cliente *"
-                  value={customerCpf}
-                  onChange={e => setCustomerCpf(e.target.value)}
-                  placeholder="000.000.000-00"
-                  required
-                />
+            <div className="bg-amber-50/80 p-4 rounded-xl border border-amber-300 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+                <div className="text-xs font-bold text-amber-950 uppercase flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-amber-700" />
+                  <span>Emissão de Crediário / Nota Promissória</span>
+                </div>
+                <Badge variant="gold" className="text-[10px]">
+                  Total: {formatBRL(totalAmount)}
+                </Badge>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="Telefone do Cliente"
-                  value={customerPhone}
-                  onChange={e => setCustomerPhone(e.target.value)}
-                  placeholder="(41) 99154-3389"
-                />
-                <Input
-                  label="Data de Vencimento da Promissória *"
-                  type="date"
-                  value={promissoryDueDate}
-                  onChange={e => setPromissoryDueDate(e.target.value)}
-                  required
-                />
+              {/* Customer Verification */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Cliente Devedor *
+                  </label>
+                  <Input
+                    required
+                    placeholder="Nome do cliente"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    CPF / CNPJ *
+                  </label>
+                  <Input
+                    required
+                    placeholder="000.000.000-00"
+                    value={customerCpf}
+                    onChange={e => setCustomerCpf(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    WhatsApp / Telefone
+                  </label>
+                  <Input
+                    placeholder="(41) 99999-9999"
+                    value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Installments Setup */}
+              <div className="space-y-2 pt-2 border-t border-amber-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-amber-950">
+                    Número de Parcelas do Crediário:
+                  </label>
+                  <select
+                    value={promissoryNumInstallments}
+                    onChange={e => setPromissoryNumInstallments(Number(e.target.value))}
+                    className="border border-amber-300 rounded-lg px-3 py-1.5 text-xs font-bold bg-white text-slate-900"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => (
+                      <option key={num} value={num}>
+                        {num}x de {formatBRL(totalAmount / num)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Installments Detailed Breakdown Table */}
+                <div className="bg-white rounded-xl border border-amber-200 overflow-hidden mt-3">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-amber-100/70 border-b border-amber-200 text-[10px] uppercase font-bold text-amber-900">
+                      <tr>
+                        <th className="py-2 px-3">Parcela</th>
+                        <th className="py-2 px-3">Nº Doc</th>
+                        <th className="py-2 px-3">Data Vencimento</th>
+                        <th className="py-2 px-3 text-right">Valor (R$)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100 text-slate-700">
+                      {promissoryInstallmentsList.map((inst, idx) => (
+                        <tr key={inst.id} className="hover:bg-amber-50/50">
+                          <td className="py-2 px-3 font-bold text-slate-900">
+                            {inst.installmentNumber}/{inst.totalInstallments}
+                          </td>
+                          <td className="py-2 px-3 font-mono text-[11px] text-slate-600">
+                            {inst.documentNumber}
+                          </td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="date"
+                              value={inst.dueDate}
+                              onChange={e => {
+                                const newDate = e.target.value;
+                                setPromissoryInstallmentsList(prev =>
+                                  prev.map((it, i) => (i === idx ? { ...it, dueDate: newDate } : it))
+                                );
+                              }}
+                              className="border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-800 bg-white"
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-right font-bold text-slate-900">
+                            {formatBRL(inst.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -688,11 +975,18 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
               className="shadow-gold px-8 py-3"
               icon={<CheckCircle2 className="w-5 h-5 text-slate-950" />}
             >
-              Finalizar Venda & Emitir Recibo
+              Finalizar Venda & Emitir Recibo Elgin i9
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Customer Quick Registration Modal */}
+      <CustomerFormModal
+        customer={null}
+        isOpen={isNewCustomerModalOpen}
+        onClose={() => setIsNewCustomerModalOpen(false)}
+      />
     </div>
   );
 };

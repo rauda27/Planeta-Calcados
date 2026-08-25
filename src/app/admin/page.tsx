@@ -3,9 +3,8 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Product } from '../../types';
-import { AdminHeader } from '../../components/admin/AdminHeader';
+import { AdminHeader, AdminTab } from '../../components/admin/AdminHeader';
 import { AdminAuthGuard } from '../../components/admin/AdminAuthGuard';
-import { LowStockAlerts } from '../../components/admin/LowStockAlerts';
 import { InventoryTable } from '../../components/admin/InventoryTable';
 import { ProductFormModal } from '../../components/admin/ProductFormModal';
 import { FinancialDashboard } from '../../components/admin/FinancialDashboard';
@@ -13,6 +12,8 @@ import { BillsTable } from '../../components/admin/BillsTable';
 import { BillFormModal } from '../../components/admin/BillFormModal';
 import { StoreBannersModal } from '../../components/admin/StoreBannersModal';
 import { POSModule } from '../../components/admin/POSModule';
+import { CustomersSuppliersModule } from '../../components/admin/CustomersSuppliersModule';
+import { DebtorsManagementModule } from '../../components/admin/DebtorsManagementModule';
 import { Footer } from '../../components/footer';
 import { useStore } from '../../context/StoreContext';
 
@@ -20,13 +21,19 @@ function AdminContent() {
   const { products } = useStore();
   const searchParams = useSearchParams();
 
-  // Tab State: 'sales' | 'inventory' | 'financial'
-  const [activeERPTab, setActiveERPTab] = useState<'sales' | 'inventory' | 'financial'>('sales');
+  // Tab State: 'sales' | 'inventory' | 'cadastros' | 'devedores' | 'financial'
+  const [activeERPTab, setActiveERPTab] = useState<AdminTab>('sales');
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'inventory' || tabParam === 'financial' || tabParam === 'sales') {
-      setActiveERPTab(tabParam);
+    if (
+      tabParam === 'inventory' ||
+      tabParam === 'financial' ||
+      tabParam === 'sales' ||
+      tabParam === 'cadastros' ||
+      tabParam === 'devedores'
+    ) {
+      setActiveERPTab(tabParam as AdminTab);
     }
   }, [searchParams]);
 
@@ -66,25 +73,36 @@ function AdminContent() {
 
         {/* Main ERP Body */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* SALES & POS MODULE */}
+          {/* 1. SALES & POS MODULE */}
           {activeERPTab === 'sales' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <POSModule />
             </div>
           )}
 
-          {/* INVENTORY MODULE */}
+          {/* 2. INVENTORY MODULE */}
           {activeERPTab === 'inventory' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              {/* Low Stock Urgent Alerts Banner */}
-              <LowStockAlerts onEditProduct={handleEditProductById} />
-
               {/* Inventory Table with Size Matrix */}
               <InventoryTable onOpenProductModal={handleOpenProductModal} />
             </div>
           )}
 
-          {/* FINANCIAL MODULE */}
+          {/* 3. CADASTROS MODULE (CLIENTES & FORNECEDORES) */}
+          {activeERPTab === 'cadastros' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <CustomersSuppliersModule />
+            </div>
+          )}
+
+          {/* 4. DEVEDORES & NOTAS PROMISSÓRIAS */}
+          {activeERPTab === 'devedores' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <DebtorsManagementModule />
+            </div>
+          )}
+
+          {/* 5. FINANCIAL MODULE */}
           {activeERPTab === 'financial' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               {/* Metric Cards & Filter Tabs */}

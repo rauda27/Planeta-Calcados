@@ -21,6 +21,7 @@ import {
   Star,
   Sparkles,
 } from 'lucide-react';
+import { getNextSequentialSku } from '../../lib/skuUtils';
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -43,8 +44,11 @@ const DEFAULT_FISCAL_DATA: FiscalData = {
 
 // Department Presets for Sizes & Volumes
 const DEPARTMENT_SIZES: Record<Department, (string | number)[]> = {
-  'Calçados': [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44],
-  'Roupas': ['PP', 'P', 'M', 'G', 'GG', 'XGG'],
+  'Calçados': [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46],
+  'Roupas': [
+    'PP', 'P', 'M', 'G', 'GG', 'XGG', 'G1', 'G2', 'G3',
+    34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56,
+  ],
   'Acessórios': ['Único', 'P/M', 'G/GG', 'Snapback', 'Strapback'],
   'Perfumes': ['30ml', '50ml', '75ml', '100ml', '200ml', 'Único'],
 };
@@ -110,12 +114,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onClose,
   editingProduct,
 }) => {
-  const { addProduct, updateProduct } = useStore();
+  const { addProduct, updateProduct, suppliers, products } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<string>('geral');
 
   // Form State - Tab 1: General Info
   const [department, setDepartment] = useState<Department>('Calçados');
+  const [supplierId, setSupplierId] = useState<string>('');
+  const [supplierName, setSupplierName] = useState<string>('');
   const [sku, setSku] = useState('');
   const [mainEan, setMainEan] = useState('');
   const [name, setName] = useState('');
@@ -138,8 +144,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [salePrice, setSalePrice] = useState<number>(0);
   const [promoPrice, setPromoPrice] = useState<number | undefined>(undefined);
 
-  // Form State - Tab 3: Grid Matrix
+  // Form State - Tab 3: Grid Matrix & Dynamic Generator
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [genColor, setGenColor] = useState('Azul');
+  const [genStartSize, setGenStartSize] = useState<string | number>(38);
+  const [genEndSize, setGenEndSize] = useState<string | number>(42);
+  const [genDefaultStock, setGenDefaultStock] = useState<number>(1);
 
   // Form State - Tab 4: Fiscal Data
   const [fiscalData, setFiscalData] = useState<FiscalData>(DEFAULT_FISCAL_DATA);
@@ -148,6 +158,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   useEffect(() => {
     if (editingProduct) {
       setDepartment(editingProduct.department || 'Calçados');
+      setSupplierId(editingProduct.supplierId || '');
+      setSupplierName(editingProduct.supplierName || '');
       setSku(editingProduct.sku || '');
       setMainEan(editingProduct.mainEan || '');
       setName(editingProduct.name || '');
@@ -168,7 +180,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setFiscalData(editingProduct.fiscalData || DEFAULT_FISCAL_DATA);
     } else {
       setDepartment('Calçados');
-      setSku(`SKU-${Math.floor(1000 + Math.random() * 9000)}`);
+      setSupplierId('');
+      setSupplierName('');
+      const nextSku = getNextSequentialSku(products);
+      setSku(nextSku);
       setMainEan('');
       setName('');
       setBrand('');
@@ -189,7 +204,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setFiscalData(DEFAULT_FISCAL_DATA);
     }
     setActiveTab('geral');
-  }, [editingProduct, isOpen]);
+  }, [editingProduct, isOpen, products]);
 
   // Handle department switch
   const handleDepartmentChange = (newDept: Department) => {
@@ -292,18 +307,83 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setVariants(prev => [...prev, newVariant]);
   };
 
+  const getColorHex = (colorName: string): string => {
+    const c = colorName.toLowerCase();
+    if (c.includes('pret')) return '#000000';
+    if (c.includes('branc')) return '#FFFFFF';
+    if (c.includes('azul')) return '#2563EB';
+    if (c.includes('vermelh')) return '#DC2626';
+    if (c.includes('ros')) return '#EC4899';
+    if (c.includes('beg')) return '#F5F5DC';
+    if (c.includes('nud')) return '#E8C5A5';
+    if (c.includes('marr') || c.includes('cafe')) return '#78350F';
+    if (c.includes('verd')) return '#16A34A';
+    if (c.includes('dourad') || c.includes('ouro')) return '#D4AF37';
+    if (c.includes('prat')) return '#94A3B8';
+    if (c.includes('amarel')) return '#EAB308';
+    if (c.includes('cinz') || c.includes('grafit')) return '#64748B';
+    return '#64748B';
+  };
+
+  const handleGenerateCustomGrid = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const colorName = genColor.trim() || 'Padrão';
+    const sizeOptions = DEPARTMENT_SIZES[department] || [36];
+
+    let selectedSizes: (string | number)[] = [];
+
+    const startIsNum = !isNaN(Number(genStartSize));
+    const endIsNum = !isNaN(Number(genEndSize));
+
+    if (startIsNum && endIsNum) {
+      const startNum = Number(genStartSize);
+      const endNum = Number(genEndSize);
+      const min = Math.min(startNum, endNum);
+      const max = Math.max(startNum, endNum);
+
+      const numericOptions = sizeOptions.filter(sz => !isNaN(Number(sz))).map(Number);
+      const matched = numericOptions.filter(n => n >= min && n <= max);
+
+      if (matched.length > 0) {
+        selectedSizes = matched;
+      } else {
+        for (let s = min; s <= max; s += 2) {
+          selectedSizes.push(s);
+        }
+      }
+    } else {
+      const startIdx = sizeOptions.indexOf(genStartSize);
+      const endIdx = sizeOptions.indexOf(genEndSize);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const minIdx = Math.min(startIdx, endIdx);
+        const maxIdx = Math.max(startIdx, endIdx);
+        selectedSizes = sizeOptions.slice(minIdx, maxIdx + 1);
+      } else {
+        selectedSizes = [genStartSize, genEndSize];
+      }
+    }
+
+    const newVariants: ProductVariant[] = selectedSizes.map(sz => ({
+      id: `v-gen-${Date.now()}-${sz}-${Math.random().toString(36).substring(2, 6)}`,
+      color: colorName,
+      colorHex: getColorHex(colorName),
+      size: sz,
+      stock: Math.max(0, genDefaultStock),
+      ean: '',
+      minStock: 1,
+      shelfLocation: '',
+    }));
+
+    setVariants(prev => [...prev, ...newVariants]);
+  };
+
   const handleAddPresetColorGrid = (colorName: string, e: React.MouseEvent) => {
     e.preventDefault();
     const sizeOptions = DEPARTMENT_SIZES[department] || [];
     const newVariants: ProductVariant[] = sizeOptions.map(sz => ({
       id: `v-preset-${Date.now()}-${sz}-${Math.random().toString(36).substring(2, 5)}`,
       color: colorName,
-      colorHex:
-        colorName.toLowerCase() === 'preto' || colorName.toLowerCase() === 'preta'
-          ? '#000000'
-          : colorName.toLowerCase() === 'branco' || colorName.toLowerCase() === 'branca'
-          ? '#FFFFFF'
-          : '#D4AF37',
+      colorHex: getColorHex(colorName),
       size: sz,
       stock: 1,
       ean: '',
@@ -346,6 +426,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       name: name.trim(),
       brand: brand.trim() || 'Planeta Calçados',
       model: model.trim() || name.trim(),
+      supplierId: supplierId || undefined,
+      supplierName: supplierName || undefined,
       department,
       gender,
       category,
@@ -450,17 +532,48 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 label="Código SKU *"
                 value={sku}
                 onChange={e => setSku(e.target.value)}
-                placeholder="Ex: SKU-1001"
+                placeholder="Ex: 26001"
                 required
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Fornecedor Vinculado
+                </label>
+                <select
+                  value={supplierId}
+                  onChange={e => {
+                    const selId = e.target.value;
+                    setSupplierId(selId);
+                    const found = suppliers.find(s => s.id === selId);
+                    if (found) {
+                      setSupplierName(found.tradeName);
+                      if (!brand) setBrand(found.tradeName);
+                      if (found.cnpjCpf) {
+                        setFiscalData(prev => ({ ...prev, supplierCnpj: found.cnpjCpf }));
+                      }
+                    } else {
+                      setSupplierName('');
+                    }
+                  }}
+                  className="w-full border border-slate-200 rounded-lg p-2.5 text-xs bg-white text-slate-800 font-medium"
+                >
+                  <option value="">-- Selecionar Fornecedor --</option>
+                  {suppliers.map(sup => (
+                    <option key={sup.id} value={sup.id}>
+                      {sup.tradeName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Input
                 label="Marca / Fabricante *"
                 value={brand}
                 onChange={e => setBrand(e.target.value)}
-                placeholder="Ex: Vizzano, Olympikus, Modare, Moleca..."
+                placeholder="Ex: Vizzano, Olympikus, Modare..."
               />
               <Input
                 label="Modelo / Linha"
@@ -469,7 +582,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 placeholder="Ex: Air Comfort, Casual Urban..."
               />
               <Input
-                label="EAN / Código de Barras Principal"
+                label="EAN Principal"
                 value={mainEan}
                 onChange={e => setMainEan(e.target.value)}
                 placeholder="7890000000000"
@@ -706,25 +819,170 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* TAB 3: MATRIZ DE GRADE DE TAMANHOS */}
         {activeTab === 'matriz' && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-100 p-3 rounded-xl">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">Grade de Tamanhos & Cores</h4>
-                <p className="text-[11px] text-slate-500">Defina os tamanhos, quantidades em estoque e local físico na loja.</p>
+            {/* DYNAMIC GRADE GENERATOR (CORES & FAIXA DE TAMANHOS) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-gold" />
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Gerador de Grade Rápida (Cor & Faixa de Numerações)
+                  </h4>
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium">Ex: 38 ao 42 Azul</span>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                {/* 1. Cor */}
+                <div className="sm:col-span-4">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Cor da Grade *
+                  </label>
+                  <input
+                    type="text"
+                    value={genColor}
+                    onChange={e => setGenColor(e.target.value)}
+                    placeholder="Ex: Azul, Preto, Nude, Branco..."
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+
+                  {/* Color Quick Suggestions */}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {['Azul', 'Preto', 'Branco', 'Bege', 'Nude', 'Vermelho', 'Rosa', 'Marrom', 'Verde', 'Dourado'].map(colorSuggestion => (
+                      <button
+                        key={colorSuggestion}
+                        type="button"
+                        onClick={() => setGenColor(colorSuggestion)}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                          genColor.toLowerCase() === colorSuggestion.toLowerCase()
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {colorSuggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Do Tamanho */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Do Tamanho
+                  </label>
+                  <select
+                    value={genStartSize}
+                    onChange={e => setGenStartSize(isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-xs font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  >
+                    {department === 'Roupas' ? (
+                      <>
+                        <optgroup label="Tamanhos em Letras">
+                          {['PP', 'P', 'M', 'G', 'GG', 'XGG', 'G1', 'G2', 'G3'].map(sz => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Tamanhos Numéricos (Calças/Bermudas)">
+                          {[34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56].map(sz => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </optgroup>
+                      </>
+                    ) : (
+                      (DEPARTMENT_SIZES[department] || []).map(sz => (
+                        <option key={sz} value={sz}>{sz}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* 3. Até o Tamanho */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Até o Tamanho
+                  </label>
+                  <select
+                    value={genEndSize}
+                    onChange={e => setGenEndSize(isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value))}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-xs font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  >
+                    {department === 'Roupas' ? (
+                      <>
+                        <optgroup label="Tamanhos em Letras">
+                          {['PP', 'P', 'M', 'G', 'GG', 'XGG', 'G1', 'G2', 'G3'].map(sz => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Tamanhos Numéricos (Calças/Bermudas)">
+                          {[34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56].map(sz => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </optgroup>
+                      </>
+                    ) : (
+                      (DEPARTMENT_SIZES[department] || []).map(sz => (
+                        <option key={sz} value={sz}>{sz}</option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* 4. Qtd / Par */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Qtd / Par
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={genDefaultStock}
+                    onChange={e => setGenDefaultStock(Math.max(1, Number(e.target.value)))}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-xs font-bold text-center bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                </div>
+
+                {/* 5. Botão Gerar */}
+                <div className="sm:col-span-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateCustomGrid}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    title={`Gerar numerações do ${genStartSize} ao ${genEndSize} na cor ${genColor}`}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Gerar Grade</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions Sub-Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+              <div className="text-xs font-bold text-slate-700">
+                Numerações na Grade: <strong className="text-brand-primary">{variants.length} variações</strong>
+              </div>
+
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => handleAddPresetColorGrid('Preto', e)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-50 cursor-pointer"
-                >
-                  + Grade Completa (Preto)
-                </button>
+                {variants.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Deseja limpar todas as numerações da grade?')) {
+                        setVariants([]);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    Limpar Grade
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={(e) => handleAddVariantRow(e)}
-                  className="px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-bold hover:bg-brand-primary/90 cursor-pointer"
+                  className="px-3.5 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-bold hover:bg-brand-primary/90 cursor-pointer flex items-center gap-1"
                 >
-                  + Adicionar Linha
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Adicionar Linha Avulsa</span>
                 </button>
               </div>
             </div>

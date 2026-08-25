@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import { Product } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { Search, Plus, Edit, Trash2, Boxes, LayoutGrid, ListFilter, ChevronDown, ChevronRight, PackageCheck } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Boxes, LayoutGrid, ListFilter, ChevronDown, ChevronRight, PackageCheck, Barcode as BarcodeIcon, Printer } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
+import { ProductLabelModal } from './ProductLabelModal';
 
 interface InventoryTableProps {
   onOpenProductModal: (product?: Product) => void;
@@ -57,6 +58,15 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
     setExpandedBrands(prev => ({ ...prev, [brand]: !prev[brand] }));
   };
 
+  // Label Modal state
+  const [selectedProductForLabels, setSelectedProductForLabels] = useState<Product | null>(null);
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
+
+  const handleOpenLabelModal = (prod?: Product) => {
+    setSelectedProductForLabels(prod || filteredProducts[0] || products[0] || null);
+    setIsLabelModalOpen(true);
+  };
+
   const handleDelete = (id: string, name: string) => {
     if (window.confirm(`Tem certeza que deseja excluir o produto "${name}" do sistema ERP?`)) {
       deleteProduct(id);
@@ -77,7 +87,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
           {/* View Switcher Toggle */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
@@ -88,7 +98,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Visão Agrupada por Marca</span>
+              <span>Visão Agrupada</span>
             </button>
 
             <button
@@ -99,9 +109,22 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
               }`}
             >
               <ListFilter className="w-3.5 h-3.5" />
-              <span>Tabela Detalhada</span>
+              <span>Tabela</span>
             </button>
           </div>
+
+          {/* Print Barcode Labels Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            onClick={() => handleOpenLabelModal()}
+            icon={<BarcodeIcon className="w-4 h-4 text-brand-primary" />}
+            className="border-slate-300 text-slate-800 hover:bg-slate-50 font-bold"
+            title="Imprimir Etiquetas com Código de Barras dos Produtos"
+          >
+            Imprimir Etiquetas
+          </Button>
 
           <Button
             type="button"
@@ -110,7 +133,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
             onClick={() => onOpenProductModal()}
             icon={<Plus className="w-4 h-4 text-slate-950" />}
           >
-            Cadastrar Novo Produto
+            Novo Produto
           </Button>
         </div>
       </div>
@@ -297,11 +320,19 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex items-center justify-end gap-2 shrink-0 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100">
+                            <div className="flex items-center justify-end gap-1.5 shrink-0 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenLabelModal(product)}
+                                className="p-2 text-slate-600 hover:text-brand-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                                title="Imprimir Etiquetas com Código de Barras deste Produto"
+                              >
+                                <BarcodeIcon className="w-4 h-4 text-brand-primary" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => onOpenProductModal(product)}
-                                className="p-2 text-slate-600 hover:text-brand-primary hover:bg-slate-100 rounded-lg transition-colors"
+                                className="p-2 text-slate-600 hover:text-brand-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                                 title="Editar Produto & Grade"
                               >
                                 <Edit className="w-4 h-4" />
@@ -309,7 +340,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
                               <button
                                 type="button"
                                 onClick={() => handleDelete(product.id, product.name)}
-                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                 title="Excluir"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -425,8 +456,16 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
+                            onClick={() => handleOpenLabelModal(product)}
+                            className="p-1.5 text-slate-600 hover:text-brand-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Imprimir Etiquetas com Código de Barras"
+                          >
+                            <BarcodeIcon className="w-4 h-4 text-brand-primary" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => onOpenProductModal(product)}
-                            className="p-1.5 text-slate-600 hover:text-brand-primary hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-brand-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                             title="Editar Produto & Grade"
                           >
                             <Edit className="w-4 h-4" />
@@ -434,7 +473,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
                           <button
                             type="button"
                             onClick={() => handleDelete(product.id, product.name)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Excluir"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -449,6 +488,13 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
           </table>
         </div>
       )}
+
+      {/* Product Label Printing Modal */}
+      <ProductLabelModal
+        product={selectedProductForLabels}
+        isOpen={isLabelModalOpen}
+        onClose={() => setIsLabelModalOpen(false)}
+      />
     </Card>
   );
 };
