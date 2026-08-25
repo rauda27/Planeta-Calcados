@@ -24,6 +24,7 @@ import {
   RotateCw,
   Sparkles,
   RefreshCw,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface ProductLabelModalProps {
@@ -130,14 +131,14 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
 
   const totalLabels = labelsToPrint.length;
 
-  // Execute Direct Printing with chosen rotation
+  // Execute Direct Printing
   const executePrint = (labelsList: typeof labelsToPrint) => {
     if (labelsList.length === 0) {
       alert('Selecione pelo menos 1 etiqueta para imprimir.');
       return;
     }
 
-    const printWindow = window.open('', '_blank', 'width=850,height=650');
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) {
       window.print();
       return;
@@ -148,24 +149,24 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
     let pagesHtml = '';
 
     if (is3Col) {
-      // Group labels into Rows of 3
+      // Group labels into Rows of 3 (1 Page = 1 Row of 3 stickers)
       const rows: (typeof labelsList)[] = [];
       for (let i = 0; i < labelsList.length; i += 3) {
         rows.push(labelsList.slice(i, i + 3));
       }
 
       rows.forEach(row => {
-        pagesHtml += `<table class="row-table" cellspacing="0" cellpadding="0"><tr>`;
+        pagesHtml += `<table class="argox-row-table" cellspacing="0" cellpadding="0"><tbody><tr>`;
 
-        // Col 1, 2, 3
+        // Col 1 (Left), Col 2 (Middle), Col 3 (Right)
         for (let colIdx = 0; colIdx < 3; colIdx++) {
           const item = row[colIdx];
           if (item) {
             const barcodeSvg = generateBarcodeSVG(item.barcodeValue, {
-              height: 20,
-              moduleWidth: 1.05,
+              height: 18,
+              moduleWidth: 1.0,
               showText: true,
-              fontSize: 8.5,
+              fontSize: 8,
             });
 
             const locationText = item.variant.shelfLocation
@@ -175,8 +176,8 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
             const priceText = formatBRL(item.product.salePrice);
 
             pagesHtml += `
-              <td class="label-td">
-                <div class="label-content rot-${rotation}">
+              <td class="col-sticker">
+                <div class="sticker-inner rot-${rotation}">
                   ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
                   <div class="prod-title">${item.product.name}</div>
                   <div class="meta-row">
@@ -192,21 +193,21 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               </td>
             `;
           } else {
-            // Empty placeholder to preserve table column layout
-            pagesHtml += `<td class="label-td label-empty"><div class="label-content"></div></td>`;
+            // Empty placeholder sticker cell to preserve columns
+            pagesHtml += `<td class="col-sticker col-blank"><div class="sticker-inner"></div></td>`;
           }
         }
 
-        pagesHtml += `</tr></table>`;
+        pagesHtml += `</tr></tbody></table>`;
       });
     } else {
       // Single column or standard layouts
       labelsList.forEach(item => {
         const barcodeSvg = generateBarcodeSVG(item.barcodeValue, {
-          height: labelFormat === 'single_34x30' ? 20 : 30,
-          moduleWidth: 1.15,
+          height: labelFormat === 'single_34x30' ? 18 : 30,
+          moduleWidth: 1.1,
           showText: true,
-          fontSize: 9,
+          fontSize: 8.5,
         });
 
         const locationText = item.variant.shelfLocation
@@ -216,7 +217,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         const priceText = formatBRL(item.product.salePrice);
 
         pagesHtml += `
-          <div class="single-label-box rot-${rotation}">
+          <div class="single-sticker-box rot-${rotation}">
             ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
             <div class="prod-title">${item.product.name}</div>
             <div class="meta-row">
@@ -245,16 +246,16 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      .store-name { font-size: 7.5px; font-weight: 900; text-transform: uppercase; text-align: center; letter-spacing: 0.3px; border-bottom: 0.5px solid #000; padding-bottom: 1px; margin-bottom: 1px; }
-      .prod-title { font-size: 8px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-      .meta-row { display: flex; justify-content: space-between; font-size: 7.5px; font-weight: 600; margin-top: 1px; }
-      .tam-badge { font-size: 8.5px; font-weight: 900; }
-      .color-text { text-transform: capitalize; font-size: 7.5px; }
-      .barcode-wrapper { margin: 1px 0; display: flex; justify-content: center; overflow: hidden; }
+      .store-name { font-size: 7px; font-weight: 900; text-transform: uppercase; text-align: center; letter-spacing: 0.2px; border-bottom: 0.5px solid #000; padding-bottom: 0.5px; margin-bottom: 1px; }
+      .prod-title { font-size: 7.5px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+      .meta-row { display: flex; justify-content: space-between; font-size: 7px; font-weight: 600; margin-top: 0.5px; }
+      .tam-badge { font-size: 8px; font-weight: 900; }
+      .color-text { text-transform: capitalize; font-size: 7px; }
+      .barcode-wrapper { margin: 0.5px 0; display: flex; justify-content: center; overflow: hidden; }
       .barcode-wrapper svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
-      .bottom-row { display: flex; justify-content: space-between; align-items: flex-end; font-size: 7.5px; margin-top: 1px; }
-      .price-tag { font-size: 10px; font-weight: 900; }
-      .loc-tag { font-size: 7px; font-weight: 700; background: #f0f0f0; padding: 0.5px 2px; border-radius: 2px; border: 0.5px solid #bbb; }
+      .bottom-row { display: flex; justify-content: space-between; align-items: flex-end; font-size: 7px; margin-top: 0.5px; }
+      .price-tag { font-size: 9.5px; font-weight: 900; }
+      .loc-tag { font-size: 6.5px; font-weight: 700; background: #f0f0f0; padding: 0.5px 1.5px; border-radius: 1px; border: 0.5px solid #bbb; }
 
       /* Rotation Classes */
       .rot-0 { transform: none; }
@@ -272,22 +273,19 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       }
 
       /* ======================================================== */
-      /* 1. ARGOX OS-214plus / 3 COLUNAS 34x30mm (TABLE-LAYOUT)  */
+      /* 1. ARGOX OS-214plus: 3 COLUNAS LADO A LADO EM 104mm x 30mm */
       /* ======================================================== */
       ${
         is3Col
           ? `
         @page {
-          size: 105mm 30mm;
+          size: 104mm 30mm;
           margin: 0mm !important;
         }
-        .labels-container {
-          width: 105mm;
-          margin: 0 auto;
-          padding: 0;
-        }
-        .row-table {
-          width: 105mm !important;
+        .argox-row-table {
+          width: 104mm !important;
+          max-width: 104mm !important;
+          min-width: 104mm !important;
           height: 30mm !important;
           max-height: 30mm !important;
           min-height: 30mm !important;
@@ -298,27 +296,29 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           margin: 0 !important;
           padding: 0 !important;
         }
-        .label-td {
-          width: 34.5mm !important;
-          height: 29.5mm !important;
-          max-height: 29.5mm !important;
+        .col-sticker {
+          width: 34.6mm !important;
+          max-width: 34.6mm !important;
+          min-width: 34.6mm !important;
+          height: 30mm !important;
+          max-height: 30mm !important;
           vertical-align: middle !important;
-          padding: 0.8mm 1.2mm !important;
+          padding: 0.5mm 1mm !important;
           border: none !important;
           box-sizing: border-box !important;
           overflow: hidden !important;
           text-align: center !important;
         }
-        .label-content {
+        .sticker-inner {
           width: 33mm;
-          height: 28mm;
+          height: 28.5mm;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
           overflow: hidden;
           margin: 0 auto;
         }
-        .label-empty {
+        .col-blank {
           visibility: hidden !important;
         }
       `
@@ -330,7 +330,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         labelFormat === 'single_34x30'
           ? `
         @page { size: 34mm 30mm; margin: 0 !important; }
-        .single-label-box {
+        .single-sticker-box {
           width: 34mm;
           height: 30mm;
           padding: 1mm 1.2mm;
@@ -350,7 +350,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         labelFormat === 'thermal_50x30'
           ? `
         @page { size: 50mm 30mm; margin: 0 !important; }
-        .single-label-box {
+        .single-sticker-box {
           width: 50mm;
           height: 30mm;
           padding: 1.5mm 2mm;
@@ -369,7 +369,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         labelFormat === 'thermal_60x40'
           ? `
         @page { size: 60mm 40mm; margin: 0 !important; }
-        .single-label-box {
+        .single-sticker-box {
           width: 60mm;
           height: 40mm;
           padding: 2mm 3mm;
@@ -394,7 +394,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           grid-auto-rows: 25.4mm;
           gap: 2mm 3mm;
         }
-        .single-label-box {
+        .single-sticker-box {
           width: 66.7mm;
           height: 25.4mm;
           padding: 1.5mm 2mm;
@@ -415,7 +415,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           ? `
         @page { size: 80mm auto; margin: 0 !important; }
         .labels-container { width: 76mm; margin: 0 auto; padding: 2mm 0; }
-        .single-label-box {
+        .single-sticker-box {
           width: 76mm;
           padding: 3mm 2mm;
           border-bottom: 1px dashed #000;
@@ -478,7 +478,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Impressão de Etiquetas com Código de Barras"
-      subtitle={`Etiquetas 34x30mm (Argox OS-214plus) — ${activeProduct.name}`}
+      subtitle={`Etiquetas 34x30mm (3 Colunas / Argox OS-214plus) — ${activeProduct.name}`}
       maxWidth="3xl"
     >
       <div className="space-y-5">
@@ -580,197 +580,203 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           </div>
         </div>
 
-        {/* Live Preview Box & Customization Toggles */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {/* 1. Live Visual Preview */}
-          <div className="md:col-span-1 bg-slate-100 p-4 rounded-xl border border-slate-200 text-center">
-            <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-center gap-1.5">
-              <Grid3X3 className="w-3.5 h-3.5 text-brand-primary" />
-              <span>Prévia da Etiqueta</span>
+        {/* Live 3-Column Preview (Showing all 3 stickers side-by-side) */}
+        <div className="bg-slate-100 p-4 rounded-xl border border-slate-200">
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <LayoutGrid className="w-4 h-4 text-brand-primary" />
+              <span>Prévia: 3 Etiquetas Lado a Lado (Carreira Tripla 34x30mm)</span>
             </div>
-
-            {/* Simulated Label Card */}
-            <div
-              className={`bg-white rounded-lg p-3 shadow-md border border-slate-300 text-left font-sans text-slate-900 mx-auto max-w-[220px] space-y-1 transition-transform duration-200 ${
-                rotation === '90'
-                  ? 'rotate-90 scale-90 my-4'
-                  : rotation === '270'
-                  ? '-rotate-90 scale-90 my-4'
-                  : rotation === '180'
-                  ? 'rotate-180'
-                  : ''
-              }`}
-            >
-              {showStoreName && (
-                <div className="text-[9.5px] font-black text-center uppercase border-b border-slate-300 pb-0.5 tracking-tight text-slate-900">
-                  PLANETA CALÇADOS
-                </div>
-              )}
-              <div className="font-extrabold text-[11px] uppercase leading-tight text-slate-900 line-clamp-1">
-                {activeProduct.name}
-              </div>
-              <div className="flex justify-between text-[10px] font-semibold text-slate-700">
-                <span>
-                  TAM: <strong className="text-slate-950 font-black">{activeProduct.variants[0]?.size || 40}</strong>
-                </span>
-                <span className="capitalize text-slate-600 truncate max-w-[90px]">
-                  {activeProduct.variants[0]?.color || 'bege'}
-                </span>
-              </div>
-
-              {/* Barcode only for Product Code / SKU (ex: 26002) */}
-              <div className="py-0.5 flex justify-center">
-                <Barcode
-                  value={activeProduct.sku || '26002'}
-                  height={22}
-                  moduleWidth={1.05}
-                  fontSize={8.5}
-                />
-              </div>
-
-              <div className="flex justify-between items-end pt-1 border-t border-slate-100">
-                {showLocation && (
-                  <span className="text-[8px] font-bold bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-700 uppercase">
-                    {activeProduct.variants[0]?.shelfLocation ? `LOC: ${activeProduct.variants[0].shelfLocation}` : 'LOC: ESTOQUE'}
-                  </span>
-                )}
-                {showPrice && (
-                  <span className="text-xs font-black text-slate-950 ml-auto">
-                    {formatBRL(activeProduct.salePrice)}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <p className="text-[10px] text-slate-500 mt-3 font-medium">
+            <span className="text-[10px] text-slate-500 font-medium">
               Giro atual: <strong>{rotation}°</strong> • SKU: <strong>{activeProduct.sku}</strong>
-            </p>
+            </span>
           </div>
 
-          {/* 2. Grid Quantities Selector */}
-          <div className="md:col-span-2 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-200">
-              <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-brand-primary" />
-                <span>Quantidades por Numeração / Variação</span>
-              </div>
-
-              {/* Quick Fill Buttons */}
-              <div className="flex gap-1.5 text-[10px]">
-                <button
-                  type="button"
-                  onClick={() => handleSetAllCounts('stock')}
-                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded cursor-pointer"
-                  title="Imprimir 1 etiqueta para cada item atualmente em estoque"
+          {/* 3 Stickers Container */}
+          <div className="grid grid-cols-3 gap-2 max-w-2xl mx-auto bg-slate-200 p-2.5 rounded-xl border border-slate-300">
+            {[1, 2, 3].map(col => {
+              const variant = activeProduct.variants[col - 1] || activeProduct.variants[0];
+              return (
+                <div
+                  key={col}
+                  className={`bg-white rounded-lg p-2.5 shadow-sm border border-slate-300 text-left font-sans text-slate-900 space-y-1 transition-transform duration-200 ${
+                    rotation === '90'
+                      ? 'rotate-90 scale-90 my-3'
+                      : rotation === '270'
+                      ? '-rotate-90 scale-90 my-3'
+                      : rotation === '180'
+                      ? 'rotate-180'
+                      : ''
+                  }`}
                 >
-                  Qtd Estoque
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetAllCounts('one')}
-                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded cursor-pointer"
-                  title="1 de cada tamanho"
-                >
-                  1 de Cada
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetAllCounts('zero')}
-                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded cursor-pointer"
-                >
-                  Zerar
-                </button>
-              </div>
-            </div>
+                  {showStoreName && (
+                    <div className="text-[8px] font-black text-center uppercase border-b border-slate-300 pb-0.5 tracking-tight text-slate-900">
+                      PLANETA CALÇADOS
+                    </div>
+                  )}
+                  <div className="font-extrabold text-[9.5px] uppercase leading-tight text-slate-900 truncate">
+                    {activeProduct.name}
+                  </div>
+                  <div className="flex justify-between text-[8.5px] font-semibold text-slate-700">
+                    <span>
+                      TAM: <strong className="text-slate-950 font-black">{variant?.size || 40}</strong>
+                    </span>
+                    <span className="capitalize text-slate-600 truncate max-w-[50px]">
+                      {variant?.color || 'bege'}
+                    </span>
+                  </div>
 
-            {/* Table of Variants & Counts */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0">
-                  <tr>
-                    <th className="py-2 px-3">Tamanho</th>
-                    <th className="py-2 px-3">Cor</th>
-                    <th className="py-2 px-3">Em Estoque</th>
-                    <th className="py-2 px-3">Localização</th>
-                    <th className="py-2 px-3 text-right">Etiquetas a Imprimir</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {activeProduct.variants.map(v => (
-                    <tr key={v.id} className="hover:bg-slate-50">
-                      <td className="py-2 px-3 font-bold text-slate-900">{v.size}</td>
-                      <td className="py-2 px-3 text-slate-700 capitalize">{v.color}</td>
-                      <td className="py-2 px-3 font-semibold text-slate-600">{v.stock} un</td>
-                      <td className="py-2 px-3 text-[11px] text-slate-500">
-                        {v.shelfLocation || '—'}
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <input
-                          type="number"
-                          min="0"
-                          max="999"
-                          value={variantPrintCounts[v.id] || 0}
-                          onChange={e => handleUpdateVariantCount(v.id, Number(e.target.value))}
-                          className="w-16 border border-slate-300 rounded p-1 text-xs text-center font-bold bg-white text-slate-900"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  {/* Barcode only for Product Code / SKU (ex: 26002) */}
+                  <div className="py-0.5 flex justify-center">
+                    <Barcode
+                      value={activeProduct.sku || '26002'}
+                      height={18}
+                      moduleWidth={0.95}
+                      fontSize={8}
+                    />
+                  </div>
 
-            {/* Customization Toggles */}
-            <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-700 font-medium">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showStoreName}
-                  onChange={e => setShowStoreName(e.target.checked)}
-                  className="rounded text-brand-primary focus:ring-brand-primary"
-                />
-                <span>Nome da Loja</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showPrice}
-                  onChange={e => setShowPrice(e.target.checked)}
-                  className="rounded text-brand-primary focus:ring-brand-primary"
-                />
-                <span>Preço de Venda</span>
-              </label>
-
-              <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showLocation}
-                  onChange={e => setShowLocation(e.target.checked)}
-                  className="rounded text-brand-primary focus:ring-brand-primary"
-                />
-                <span>Local no Estoque (Prateleira)</span>
-              </label>
-            </div>
+                  <div className="flex justify-between items-end pt-0.5 border-t border-slate-100">
+                    {showLocation && (
+                      <span className="text-[7px] font-bold bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-700 uppercase">
+                        {variant?.shelfLocation ? `LOC: ${variant.shelfLocation}` : 'LOC: EST'}
+                      </span>
+                    )}
+                    {showPrice && (
+                      <span className="text-[10px] font-black text-slate-950 ml-auto">
+                        {formatBRL(activeProduct.salePrice)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Argox OS-214plus Print Setup Instructions Banner */}
+        {/* Quantities Selector & Toggles */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-200">
+            <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-brand-primary" />
+              <span>Quantidades por Numeração / Variação</span>
+            </div>
+
+            {/* Quick Fill Buttons */}
+            <div className="flex gap-1.5 text-[10px]">
+              <button
+                type="button"
+                onClick={() => handleSetAllCounts('stock')}
+                className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded cursor-pointer"
+                title="Imprimir 1 etiqueta para cada item atualmente em estoque"
+              >
+                Qtd Estoque
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetAllCounts('one')}
+                className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded cursor-pointer"
+                title="1 de cada tamanho"
+              >
+                1 de Cada
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetAllCounts('zero')}
+                className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded cursor-pointer"
+              >
+                Zerar
+              </button>
+            </div>
+          </div>
+
+          {/* Table of Variants & Counts */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0">
+                <tr>
+                  <th className="py-2 px-3">Tamanho</th>
+                  <th className="py-2 px-3">Cor</th>
+                  <th className="py-2 px-3">Em Estoque</th>
+                  <th className="py-2 px-3">Localização</th>
+                  <th className="py-2 px-3 text-right">Etiquetas a Imprimir</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {activeProduct.variants.map(v => (
+                  <tr key={v.id} className="hover:bg-slate-50">
+                    <td className="py-2 px-3 font-bold text-slate-900">{v.size}</td>
+                    <td className="py-2 px-3 text-slate-700 capitalize">{v.color}</td>
+                    <td className="py-2 px-3 font-semibold text-slate-600">{v.stock} un</td>
+                    <td className="py-2 px-3 text-[11px] text-slate-500">
+                      {v.shelfLocation || '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right">
+                      <input
+                        type="number"
+                        min="0"
+                        max="999"
+                        value={variantPrintCounts[v.id] || 0}
+                        onChange={e => handleUpdateVariantCount(v.id, Number(e.target.value))}
+                        className="w-16 border border-slate-300 rounded p-1 text-xs text-center font-bold bg-white text-slate-900"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Customization Toggles */}
+          <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-700 font-medium">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showStoreName}
+                onChange={e => setShowStoreName(e.target.checked)}
+                className="rounded text-brand-primary focus:ring-brand-primary"
+              />
+              <span>Nome da Loja</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showPrice}
+                onChange={e => setShowPrice(e.target.checked)}
+                className="rounded text-brand-primary focus:ring-brand-primary"
+              />
+              <span>Preço de Venda</span>
+            </label>
+
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showLocation}
+                onChange={e => setShowLocation(e.target.checked)}
+                className="rounded text-brand-primary focus:ring-brand-primary"
+              />
+              <span>Local no Estoque (Prateleira)</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Argox OS-214plus Setup Instructions Banner */}
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 flex items-start gap-2.5">
           <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
           <div className="space-y-1 text-[11px]">
             <div className="font-black text-amber-900 uppercase">
-              Como testar na Argox OS-214plus:
+              Como imprimir 3 etiquetas lado a lado na Argox OS-214plus:
             </div>
             <ul className="list-disc list-inside space-y-0.5 text-amber-900">
               <li>
-                Clique em <strong>🧪 Testar 1 Linha (3 Etiquetas)</strong>.
-              </li>
-              <li>
-                Se a impressão sair de lado, selecione o botão <strong>-90° (Desvirar)</strong> na barra preta de Giro acima e clique em testar novamente!
+                Clique em <strong>🧪 Testar 1 Linha (3 Etiquetas)</strong> para imprimir 1 carreira com 3 etiquetas lado a lado.
               </li>
               <li>
                 Na janela do navegador: <strong>Margens: Nenhuma (0mm)</strong> e <strong>Desmarque "Cabeçalhos e rodapés"</strong>.
+              </li>
+              <li>
+                Se a sua impressora estiver rotacionando o texto, selecione o botão <strong>-90° (Desvirar)</strong> na barra preta de Giro.
               </li>
             </ul>
           </div>
@@ -780,7 +786,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
           <div className="text-xs font-bold text-slate-700">
             Total de Etiquetas: <strong className="text-brand-primary text-sm">{totalLabels} etiquetas</strong>
-            <span className="text-slate-400 font-normal ml-2">({Math.ceil(totalLabels / 3)} carreiras)</span>
+            <span className="text-slate-400 font-normal ml-2">({Math.ceil(totalLabels / 3)} carreiras de 3 colunas)</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -794,9 +800,9 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               variant="outline"
               onClick={handleTestPrint3Labels}
               className="border-slate-300 text-slate-800 hover:bg-slate-100 text-xs font-bold"
-              title="Imprimir apenas 1 linha de 3 etiquetas para teste"
+              title="Imprimir 1 carreira com 3 etiquetas lado a lado"
             >
-              🧪 Testar 1 Linha (3 Etiquetas)
+              🧪 Testar 1 Linha (3 Etiquetas Lado a Lado)
             </Button>
 
             {/* Full Batch Print Button */}
