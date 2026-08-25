@@ -19,6 +19,7 @@ import {
   FileText,
   Sliders,
   DollarSign,
+  Grid3X3,
 } from 'lucide-react';
 
 interface ProductLabelModalProps {
@@ -27,7 +28,7 @@ interface ProductLabelModalProps {
   onClose: () => void;
 }
 
-export type LabelFormat = 'thermal_50x30' | 'thermal_60x40' | 'a4_pimaco_30' | 'thermal_elgin_80';
+export type LabelFormat = 'thermal_3col_34x30' | 'thermal_50x30' | 'thermal_60x40' | 'a4_pimaco_30' | 'thermal_elgin_80';
 
 export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
   product,
@@ -37,7 +38,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
   const { products } = useStore();
 
   const [selectedProductId, setSelectedProductId] = useState<string>('');
-  const [labelFormat, setLabelFormat] = useState<LabelFormat>('thermal_50x30');
+  const [labelFormat, setLabelFormat] = useState<LabelFormat>('thermal_3col_34x30');
   
   // Quantities to print per variant id: { [variantId]: number }
   const [variantPrintCounts, setVariantPrintCounts] = useState<Record<string, number>>({});
@@ -46,7 +47,6 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
   const [showStoreName, setShowStoreName] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
   const [showLocation, setShowLocation] = useState(true);
-  const [showDepartment, setShowDepartment] = useState(true);
 
   // Active product
   const activeProduct = products.find(p => p.id === (selectedProductId || product?.id)) || product;
@@ -126,7 +126,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       return;
     }
 
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const printWindow = window.open('', '_blank', 'width=850,height=650');
     if (!printWindow) {
       window.print();
       return;
@@ -135,12 +135,13 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
     // Build items HTML with barcode SVGs
     let itemsHtml = '';
 
-    labelsToPrint.forEach((item, index) => {
+    labelsToPrint.forEach(item => {
+      const is34x30 = labelFormat === 'thermal_3col_34x30';
       const barcodeSvg = generateBarcodeSVG(item.barcodeValue, {
-        height: labelFormat === 'thermal_50x30' ? 28 : 34,
-        moduleWidth: 1.25,
+        height: is34x30 ? 20 : labelFormat === 'thermal_50x30' ? 28 : 34,
+        moduleWidth: is34x30 ? 1.05 : 1.25,
         showText: true,
-        fontSize: 9,
+        fontSize: is34x30 ? 8 : 9,
       });
 
       const locationText = item.variant.shelfLocation
@@ -149,8 +150,25 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
 
       const priceText = formatBRL(item.product.salePrice);
 
-      if (labelFormat === 'thermal_50x30') {
-        // 50mm x 30mm standard adhesive label
+      if (labelFormat === 'thermal_3col_34x30') {
+        // 34mm x 30mm (3 Colunas / Carreira Tripla)
+        itemsHtml += `
+          <div class="label-box label-34x30">
+            ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
+            <div class="prod-title">${item.product.name}</div>
+            <div class="meta-row">
+              <span class="tam-badge">TAM: <strong>${item.variant.size}</strong></span>
+              <span class="color-text">${item.variant.color}</span>
+            </div>
+            <div class="barcode-wrapper">${barcodeSvg}</div>
+            <div class="bottom-row">
+              ${showLocation && locationText ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
+              ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
+            </div>
+          </div>
+        `;
+      } else if (labelFormat === 'thermal_50x30') {
+        // 50mm x 30mm standard adhesive label (1 Coluna)
         itemsHtml += `
           <div class="label-box label-50x30">
             ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
@@ -230,20 +248,51 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         color: #000000;
         background: #ffffff;
       }
-      .store-name { font-size: 8px; font-weight: 800; text-transform: uppercase; text-align: center; letter-spacing: 0.5px; border-bottom: 0.5px solid #000; padding-bottom: 1px; margin-bottom: 2px; }
-      .prod-title { font-size: 9px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .store-name { font-size: 7.5px; font-weight: 800; text-transform: uppercase; text-align: center; letter-spacing: 0.3px; border-bottom: 0.5px solid #000; padding-bottom: 1px; margin-bottom: 1.5px; }
+      .prod-title { font-size: 8px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .prod-title-lg { font-size: 10px; font-weight: 700; text-transform: uppercase; line-height: 1.1; margin-bottom: 2px; }
-      .meta-row { display: flex; justify-content: space-between; font-size: 8px; font-weight: 600; margin-top: 1px; }
+      .meta-row { display: flex; justify-content: space-between; font-size: 7.5px; font-weight: 600; margin-top: 1px; }
       .meta-row-lg { display: flex; justify-content: space-between; font-size: 9px; font-weight: 600; margin-top: 2px; }
-      .tam-badge { font-size: 9px; font-weight: 900; }
+      .tam-badge { font-size: 8.5px; font-weight: 900; }
       .tam-badge-lg { font-size: 11px; font-weight: 900; }
-      .barcode-wrapper { margin: 2px 0; display: flex; justify-content: center; }
+      .barcode-wrapper { margin: 1.5px 0; display: flex; justify-content: center; overflow: hidden; }
       .barcode-wrapper svg { max-width: 100%; height: auto; }
-      .bottom-row { display: flex; justify-content: space-between; align-items: flex-end; font-size: 8px; margin-top: 1px; }
+      .bottom-row { display: flex; justify-content: space-between; align-items: flex-end; font-size: 7.5px; margin-top: 1px; }
       .bottom-row-lg { display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; margin-top: 2px; }
-      .price-tag { font-size: 11px; font-weight: 900; }
+      .price-tag { font-size: 10px; font-weight: 900; }
       .price-tag-lg { font-size: 13px; font-weight: 900; }
-      .loc-tag { font-size: 7.5px; font-weight: 700; background: #eee; padding: 1px 3px; border-radius: 2px; border: 0.5px solid #aaa; }
+      .loc-tag { font-size: 7px; font-weight: 700; background: #eee; padding: 0.5px 2px; border-radius: 2px; border: 0.5px solid #aaa; }
+
+      /* 34x30 mm 3 COLUNAS (Rolo Triplo 106mm / Zebra / Elgin L42 / Argox) */
+      ${
+        labelFormat === 'thermal_3col_34x30'
+          ? `
+        @page { size: 106mm 30mm; margin: 0; }
+        .label-container {
+          display: grid;
+          grid-template-columns: 34mm 34mm 34mm;
+          grid-auto-rows: 30mm;
+          column-gap: 2mm;
+          row-gap: 0mm;
+          width: 106mm;
+          margin: 0 auto;
+        }
+        .label-box {
+          width: 34mm;
+          height: 30mm;
+          max-width: 34mm;
+          max-height: 30mm;
+          padding: 1mm 1.2mm;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow: hidden;
+          box-sizing: border-box;
+          page-break-inside: avoid;
+        }
+      `
+          : ''
+      }
 
       /* 50x30 mm Thermal Label */
       ${
@@ -337,7 +386,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>Etiquetas - Planeta Calçados</title>
+          <title>Etiquetas 34x30 - Planeta Calçados</title>
           <style>${printCss}</style>
         </head>
         <body>
@@ -362,7 +411,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Impressão de Etiquetas com Código de Barras"
-      subtitle={`Gerador de Etiquetas Térmicas e Adesivas — ${activeProduct.name}`}
+      subtitle={`Etiquetas 34x30mm em 3 Colunas — ${activeProduct.name}`}
       maxWidth="3xl"
     >
       <div className="space-y-6">
@@ -394,11 +443,14 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               onChange={e => setLabelFormat(e.target.value as LabelFormat)}
               className="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white text-slate-900 focus:ring-2 focus:ring-brand-primary"
             >
+              <option value="thermal_3col_34x30">
+                ⭐ 3 Colunas 34x30mm (Rolo Triplo 106mm — Elgin L42 / Zebra / Argox)
+              </option>
               <option value="thermal_50x30">
-                🏷️ Rolo Térmico Adesivo 50x30mm (Zebra / Elgin L42 / Argox)
+                🏷️ 1 Coluna 50x30mm (Rolo Individual)
               </option>
               <option value="thermal_60x40">
-                🏷️ Rolo Térmico Adesivo 60x40mm (Maior / Gôndola)
+                🏷️ 1 Coluna 60x40mm (Gôndola / Cabide)
               </option>
               <option value="a4_pimaco_30">
                 📄 Folha A4 Adesiva Pimaco (30 etiquetas por folha)
@@ -415,52 +467,52 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           {/* 1. Live Visual Preview */}
           <div className="md:col-span-1 bg-slate-100 p-4 rounded-xl border border-slate-200 text-center">
             <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-brand-primary" />
-              <span>Prévia da Etiqueta</span>
+              <Grid3X3 className="w-3.5 h-3.5 text-brand-primary" />
+              <span>Prévia (34x30mm)</span>
             </div>
 
-            {/* Simulated Label Card */}
-            <div className="bg-white rounded-lg p-3 shadow-md border border-slate-300 text-left font-sans text-slate-900 mx-auto max-w-[240px] space-y-1.5">
+            {/* Simulated Label Card (34x30 proportion) */}
+            <div className="bg-white rounded-lg p-2.5 shadow-md border border-slate-300 text-left font-sans text-slate-900 mx-auto max-w-[210px] space-y-1">
               {showStoreName && (
-                <div className="text-[10px] font-black text-center uppercase border-b border-slate-300 pb-1 tracking-wider text-slate-800">
+                <div className="text-[9px] font-black text-center uppercase border-b border-slate-300 pb-0.5 tracking-tight text-slate-800">
                   PLANETA CALÇADOS
                 </div>
               )}
-              <div className="font-bold text-xs uppercase leading-tight text-slate-900 line-clamp-1">
+              <div className="font-bold text-[11px] uppercase leading-tight text-slate-900 line-clamp-1">
                 {activeProduct.name}
               </div>
-              <div className="flex justify-between text-[11px] font-semibold text-slate-700">
+              <div className="flex justify-between text-[10px] font-semibold text-slate-700">
                 <span>
                   TAM: <strong className="text-slate-950">{activeProduct.variants[0]?.size || 38}</strong>
                 </span>
-                <span>COR: {activeProduct.variants[0]?.color || 'Padrão'}</span>
+                <span className="truncate max-w-[90px]">{activeProduct.variants[0]?.color || 'Padrão'}</span>
               </div>
 
-              <div className="py-1 flex justify-center">
+              <div className="py-0.5 flex justify-center">
                 <Barcode
                   value={activeProduct.variants[0]?.ean || `${activeProduct.sku}-${activeProduct.variants[0]?.size || 38}`}
-                  height={28}
-                  moduleWidth={1.2}
-                  fontSize={9}
+                  height={22}
+                  moduleWidth={1.05}
+                  fontSize={8}
                 />
               </div>
 
               <div className="flex justify-between items-end pt-1 border-t border-slate-100">
                 {showLocation && (
-                  <span className="text-[9px] font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">
+                  <span className="text-[8px] font-bold bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-700">
                     {activeProduct.variants[0]?.shelfLocation ? `LOC: ${activeProduct.variants[0].shelfLocation}` : 'LOC: ESTOQUE'}
                   </span>
                 )}
                 {showPrice && (
-                  <span className="text-xs font-black text-slate-950 ml-auto">
+                  <span className="text-[11px] font-black text-slate-950 ml-auto">
                     {formatBRL(activeProduct.salePrice)}
                   </span>
                 )}
               </div>
             </div>
 
-            <p className="text-[10px] text-slate-500 mt-3">
-              Formato: <strong>{labelFormat === 'thermal_50x30' ? '50x30mm' : labelFormat === 'thermal_60x40' ? '60x40mm' : labelFormat === 'a4_pimaco_30' ? 'Folha A4' : 'Elgin i9 80mm'}</strong>
+            <p className="text-[10px] text-slate-500 mt-3 font-medium">
+              Layout: <strong>3 Colunas 34x30mm</strong>
             </p>
           </div>
 
@@ -576,6 +628,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         <div className="flex items-center justify-between pt-4 border-t border-slate-100">
           <div className="text-xs font-bold text-slate-700">
             Total de Etiquetas: <strong className="text-brand-primary text-sm">{totalLabels} etiquetas</strong>
+            <span className="text-slate-400 font-normal ml-2">({Math.ceil(totalLabels / 3)} carreiras de 3 colunas)</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -591,7 +644,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               icon={<Printer className="w-4 h-4 text-slate-950" />}
               className="shadow-gold px-6 font-bold"
             >
-              Imprimir {totalLabels} Etiqueta{totalLabels === 1 ? '' : 's'}
+              Imprimir {totalLabels} Etiqueta{totalLabels === 1 ? '' : 's'} (34x30)
             </Button>
           </div>
         </div>
