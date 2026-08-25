@@ -20,6 +20,8 @@ import {
   Sliders,
   DollarSign,
   Grid3X3,
+  AlertCircle,
+  HelpCircle,
 } from 'lucide-react';
 
 interface ProductLabelModalProps {
@@ -97,7 +99,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
     }));
   };
 
-  // Compile list of all labels to print
+  // Compile list of all labels to print (Barcode is strictly the product SKU as requested)
   const labelsToPrint: {
     product: Product;
     variant: ProductVariant;
@@ -106,7 +108,8 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
 
   activeProduct.variants.forEach(variant => {
     const count = variantPrintCounts[variant.id] || 0;
-    const barcodeVal = variant.ean || `${activeProduct.sku}-${variant.size}`;
+    // O código de barras deve ser apenas o código do produto (SKU, ex: 26002)
+    const barcodeVal = activeProduct.sku || '26001';
     for (let i = 0; i < count; i++) {
       labelsToPrint.push({
         product: activeProduct,
@@ -119,7 +122,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
   // Total count of labels
   const totalLabels = labelsToPrint.length;
 
-  // Direct High-Quality Print Function
+  // Direct High-Quality Print Function (Calibrated for Argox OS-214plus / Zebra / Elgin)
   const handlePrint = () => {
     if (totalLabels === 0) {
       alert('Selecione pelo menos 1 etiqueta para imprimir.');
@@ -132,163 +135,219 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       return;
     }
 
-    // Build items HTML with barcode SVGs
     let itemsHtml = '';
 
-    labelsToPrint.forEach(item => {
-      const is34x30 = labelFormat === 'thermal_3col_34x30';
-      const barcodeSvg = generateBarcodeSVG(item.barcodeValue, {
-        height: is34x30 ? 20 : labelFormat === 'thermal_50x30' ? 28 : 34,
-        moduleWidth: is34x30 ? 1.05 : 1.25,
-        showText: true,
-        fontSize: is34x30 ? 8 : 9,
-      });
-
-      const locationText = item.variant.shelfLocation
-        ? `LOC: ${item.variant.shelfLocation}`
-        : '';
-
-      const priceText = formatBRL(item.product.salePrice);
-
-      if (labelFormat === 'thermal_3col_34x30') {
-        // 34mm x 30mm (3 Colunas / Carreira Tripla)
-        itemsHtml += `
-          <div class="label-box label-34x30">
-            ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
-            <div class="prod-title">${item.product.name}</div>
-            <div class="meta-row">
-              <span class="tam-badge">TAM: <strong>${item.variant.size}</strong></span>
-              <span class="color-text">${item.variant.color}</span>
-            </div>
-            <div class="barcode-wrapper">${barcodeSvg}</div>
-            <div class="bottom-row">
-              ${showLocation && locationText ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
-              ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
-            </div>
-          </div>
-        `;
-      } else if (labelFormat === 'thermal_50x30') {
-        // 50mm x 30mm standard adhesive label (1 Coluna)
-        itemsHtml += `
-          <div class="label-box label-50x30">
-            ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
-            <div class="prod-title">${item.product.name}</div>
-            <div class="meta-row">
-              <span class="tam-badge">TAM: <strong>${item.variant.size}</strong></span>
-              <span class="color-text">COR: ${item.variant.color}</span>
-            </div>
-            <div class="barcode-wrapper">${barcodeSvg}</div>
-            <div class="bottom-row">
-              ${showLocation && locationText ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
-              ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
-            </div>
-          </div>
-        `;
-      } else if (labelFormat === 'thermal_60x40') {
-        // 60mm x 40mm larger adhesive label
-        itemsHtml += `
-          <div class="label-box label-60x40">
-            ${showStoreName ? '<div class="store-name font-bold">PLANETA CALÇADOS QB</div>' : ''}
-            <div class="prod-title-lg">${item.product.name}</div>
-            <div class="meta-row-lg">
-              <span class="tam-badge-lg">TAM: <strong>${item.variant.size}</strong></span>
-              <span class="color-text">COR: ${item.variant.color}</span>
-              ${item.product.brand ? `<span>MARCA: ${item.product.brand}</span>` : ''}
-            </div>
-            <div class="barcode-wrapper">${barcodeSvg}</div>
-            <div class="bottom-row-lg">
-              ${showLocation && locationText ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
-              ${showPrice ? `<span class="price-tag-lg">${priceText}</span>` : ''}
-            </div>
-          </div>
-        `;
-      } else if (labelFormat === 'a4_pimaco_30') {
-        // A4 sheet Pimaco 30 labels (3 cols x 10 rows)
-        itemsHtml += `
-          <div class="label-box label-a4-pimaco">
-            ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
-            <div class="prod-title">${item.product.name}</div>
-            <div class="meta-row">
-              <span>TAM: <strong>${item.variant.size}</strong></span>
-              <span>COR: ${item.variant.color}</span>
-            </div>
-            <div class="barcode-wrapper">${barcodeSvg}</div>
-            <div class="bottom-row">
-              ${showLocation && locationText ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
-              ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
-            </div>
-          </div>
-        `;
-      } else {
-        // Elgin i9 80mm continuous thermal strip
-        itemsHtml += `
-          <div class="label-box label-elgin-80">
-            ${showStoreName ? '<div class="store-name font-bold">PLANETA CALÇADOS</div>' : ''}
-            <div class="prod-title-lg">${item.product.name}</div>
-            <div class="meta-row">
-              <span>TAM: <strong>${item.variant.size}</strong></span>
-              <span>COR: ${item.variant.color}</span>
-              ${item.product.brand ? `<span>MARCA: ${item.product.brand}</span>` : ''}
-            </div>
-            <div class="barcode-wrapper">${barcodeSvg}</div>
-            <div class="bottom-row-lg">
-              ${showLocation && locationText ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
-              ${showPrice ? `<span class="price-tag-lg">${priceText}</span>` : ''}
-            </div>
-          </div>
-        `;
+    if (labelFormat === 'thermal_3col_34x30') {
+      // Group labels into Rows of 3 for the 3-column physical carrier (106mm width)
+      const rows: (typeof labelsToPrint)[] = [];
+      for (let i = 0; i < labelsToPrint.length; i += 3) {
+        rows.push(labelsToPrint.slice(i, i + 3));
       }
-    });
+
+      rows.forEach(row => {
+        itemsHtml += `<div class="row-3col">`;
+
+        // Render each of the 3 items in the row
+        row.forEach(item => {
+          const barcodeSvg = generateBarcodeSVG(item.barcodeValue, {
+            height: 22,
+            moduleWidth: 1.05,
+            showText: true,
+            fontSize: 8.5,
+          });
+
+          const locationText = item.variant.shelfLocation
+            ? `LOC: ${item.variant.shelfLocation}`
+            : 'LOC: ESTOQUE';
+
+          const priceText = formatBRL(item.product.salePrice);
+
+          itemsHtml += `
+            <div class="label-box label-34x30">
+              ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
+              <div class="prod-title">${item.product.name}</div>
+              <div class="meta-row">
+                <span class="tam-badge">TAM: <strong>${item.variant.size}</strong></span>
+                <span class="color-text">${item.variant.color}</span>
+              </div>
+              <div class="barcode-wrapper">${barcodeSvg}</div>
+              <div class="bottom-row">
+                ${showLocation ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
+                ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        // If row has fewer than 3 items, pad with empty invisible placeholders to preserve exact column positions
+        const missing = 3 - row.length;
+        for (let m = 0; m < missing; m++) {
+          itemsHtml += `<div class="label-box label-34x30 label-empty"></div>`;
+        }
+
+        itemsHtml += `</div>`;
+      });
+    } else {
+      // 1-column or standard layouts
+      labelsToPrint.forEach(item => {
+        const barcodeSvg = generateBarcodeSVG(item.barcodeValue, {
+          height: labelFormat === 'thermal_50x30' ? 28 : 34,
+          moduleWidth: 1.25,
+          showText: true,
+          fontSize: 9,
+        });
+
+        const locationText = item.variant.shelfLocation
+          ? `LOC: ${item.variant.shelfLocation}`
+          : 'LOC: ESTOQUE';
+
+        const priceText = formatBRL(item.product.salePrice);
+
+        if (labelFormat === 'thermal_50x30') {
+          itemsHtml += `
+            <div class="label-box label-50x30">
+              ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
+              <div class="prod-title">${item.product.name}</div>
+              <div class="meta-row">
+                <span class="tam-badge">TAM: <strong>${item.variant.size}</strong></span>
+                <span class="color-text">COR: ${item.variant.color}</span>
+              </div>
+              <div class="barcode-wrapper">${barcodeSvg}</div>
+              <div class="bottom-row">
+                ${showLocation ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
+                ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
+              </div>
+            </div>
+          `;
+        } else if (labelFormat === 'thermal_60x40') {
+          itemsHtml += `
+            <div class="label-box label-60x40">
+              ${showStoreName ? '<div class="store-name font-bold">PLANETA CALÇADOS QB</div>' : ''}
+              <div class="prod-title-lg">${item.product.name}</div>
+              <div class="meta-row-lg">
+                <span class="tam-badge-lg">TAM: <strong>${item.variant.size}</strong></span>
+                <span class="color-text">COR: ${item.variant.color}</span>
+                ${item.product.brand ? `<span>MARCA: ${item.product.brand}</span>` : ''}
+              </div>
+              <div class="barcode-wrapper">${barcodeSvg}</div>
+              <div class="bottom-row-lg">
+                ${showLocation ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
+                ${showPrice ? `<span class="price-tag-lg">${priceText}</span>` : ''}
+              </div>
+            </div>
+          `;
+        } else if (labelFormat === 'a4_pimaco_30') {
+          itemsHtml += `
+            <div class="label-box label-a4-pimaco">
+              ${showStoreName ? '<div class="store-name">PLANETA CALÇADOS</div>' : ''}
+              <div class="prod-title">${item.product.name}</div>
+              <div class="meta-row">
+                <span>TAM: <strong>${item.variant.size}</strong></span>
+                <span>COR: ${item.variant.color}</span>
+              </div>
+              <div class="barcode-wrapper">${barcodeSvg}</div>
+              <div class="bottom-row">
+                ${showLocation ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
+                ${showPrice ? `<span class="price-tag">${priceText}</span>` : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          itemsHtml += `
+            <div class="label-box label-elgin-80">
+              ${showStoreName ? '<div class="store-name font-bold">PLANETA CALÇADOS</div>' : ''}
+              <div class="prod-title-lg">${item.product.name}</div>
+              <div class="meta-row">
+                <span>TAM: <strong>${item.variant.size}</strong></span>
+                <span>COR: ${item.variant.color}</span>
+                ${item.product.brand ? `<span>MARCA: ${item.product.brand}</span>` : ''}
+              </div>
+              <div class="barcode-wrapper">${barcodeSvg}</div>
+              <div class="bottom-row-lg">
+                ${showLocation ? `<span class="loc-tag">${locationText}</span>` : '<span></span>'}
+                ${showPrice ? `<span class="price-tag-lg">${priceText}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }
+      });
+    }
 
     const printCss = `
       @charset "UTF-8";
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body {
+      html, body {
         font-family: Arial, Helvetica, sans-serif;
         color: #000000;
         background: #ffffff;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       .store-name { font-size: 7.5px; font-weight: 800; text-transform: uppercase; text-align: center; letter-spacing: 0.3px; border-bottom: 0.5px solid #000; padding-bottom: 1px; margin-bottom: 1.5px; }
-      .prod-title { font-size: 8px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .prod-title-lg { font-size: 10px; font-weight: 700; text-transform: uppercase; line-height: 1.1; margin-bottom: 2px; }
+      .prod-title { font-size: 8px; font-weight: 700; text-transform: uppercase; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+      .prod-title-lg { font-size: 10px; font-weight: 700; text-transform: uppercase; line-height: 1.1; margin-bottom: 2px; text-align: left; }
       .meta-row { display: flex; justify-content: space-between; font-size: 7.5px; font-weight: 600; margin-top: 1px; }
       .meta-row-lg { display: flex; justify-content: space-between; font-size: 9px; font-weight: 600; margin-top: 2px; }
       .tam-badge { font-size: 8.5px; font-weight: 900; }
       .tam-badge-lg { font-size: 11px; font-weight: 900; }
-      .barcode-wrapper { margin: 1.5px 0; display: flex; justify-content: center; overflow: hidden; }
-      .barcode-wrapper svg { max-width: 100%; height: auto; }
+      .color-text { text-transform: capitalize; font-size: 7.5px; }
+      .barcode-wrapper { margin: 1px 0; display: flex; justify-content: center; overflow: hidden; }
+      .barcode-wrapper svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
       .bottom-row { display: flex; justify-content: space-between; align-items: flex-end; font-size: 7.5px; margin-top: 1px; }
       .bottom-row-lg { display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; margin-top: 2px; }
       .price-tag { font-size: 10px; font-weight: 900; }
       .price-tag-lg { font-size: 13px; font-weight: 900; }
-      .loc-tag { font-size: 7px; font-weight: 700; background: #eee; padding: 0.5px 2px; border-radius: 2px; border: 0.5px solid #aaa; }
+      .loc-tag { font-size: 7px; font-weight: 700; background: #f0f0f0; padding: 0.5px 2px; border-radius: 2px; border: 0.5px solid #bbb; }
 
-      /* 34x30 mm 3 COLUNAS (Rolo Triplo 106mm / Zebra / Elgin L42 / Argox) */
+      /* ======================================================== */
+      /* 1. ARGOX OS-214plus / 3 COLUNAS 34x30mm (ROLO 106mm)   */
+      /* ======================================================== */
       ${
         labelFormat === 'thermal_3col_34x30'
           ? `
-        @page { size: 106mm 30mm; margin: 0; }
-        .label-container {
-          display: grid;
-          grid-template-columns: 34mm 34mm 34mm;
-          grid-auto-rows: 30mm;
-          column-gap: 2mm;
-          row-gap: 0mm;
+        @page {
+          size: 106mm 30mm;
+          margin: 0mm !important;
+        }
+        .labels-container {
           width: 106mm;
           margin: 0 auto;
+          padding: 0;
         }
-        .label-box {
-          width: 34mm;
-          height: 30mm;
-          max-width: 34mm;
-          max-height: 30mm;
-          padding: 1mm 1.2mm;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          overflow: hidden;
-          box-sizing: border-box;
-          page-break-inside: avoid;
+        .row-3col {
+          display: flex !important;
+          flex-direction: row !important;
+          justify-content: space-between !important;
+          align-items: stretch !important;
+          width: 106mm !important;
+          height: 30mm !important;
+          max-height: 30mm !important;
+          min-height: 30mm !important;
+          page-break-after: always !important;
+          page-break-inside: avoid !important;
+          box-sizing: border-box !important;
+          padding: 0 0.5mm !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+        }
+        .label-34x30 {
+          width: 34mm !important;
+          height: 29.5mm !important;
+          max-width: 34mm !important;
+          max-height: 29.5mm !important;
+          padding: 1mm 1.2mm !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: space-between !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          border: none !important;
+          background: #ffffff !important;
+        }
+        .label-empty {
+          visibility: hidden !important;
         }
       `
           : ''
@@ -298,8 +357,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       ${
         labelFormat === 'thermal_50x30'
           ? `
-        @page { size: 50mm 30mm; margin: 0; }
-        .label-container { display: flex; flex-direction: column; }
+        @page { size: 50mm 30mm; margin: 0 !important; }
         .label-box {
           width: 50mm;
           height: 30mm;
@@ -318,8 +376,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       ${
         labelFormat === 'thermal_60x40'
           ? `
-        @page { size: 60mm 40mm; margin: 0; }
-        .label-container { display: flex; flex-direction: column; }
+        @page { size: 60mm 40mm; margin: 0 !important; }
         .label-box {
           width: 60mm;
           height: 40mm;
@@ -338,8 +395,8 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       ${
         labelFormat === 'a4_pimaco_30'
           ? `
-        @page { size: A4 portrait; margin: 10mm 5mm; }
-        .label-container {
+        @page { size: A4 portrait; margin: 10mm 5mm !important; }
+        .labels-container {
           display: grid;
           grid-template-columns: repeat(3, 66.7mm);
           grid-auto-rows: 25.4mm;
@@ -364,8 +421,8 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       ${
         labelFormat === 'thermal_elgin_80'
           ? `
-        @page { size: 80mm auto; margin: 0; }
-        .label-container { width: 76mm; margin: 0 auto; padding: 2mm 0; }
+        @page { size: 80mm auto; margin: 0 !important; }
+        .labels-container { width: 76mm; margin: 0 auto; padding: 2mm 0; }
         .label-box {
           width: 76mm;
           padding: 3mm 2mm;
@@ -386,18 +443,18 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>Etiquetas 34x30 - Planeta Calçados</title>
+          <title>Etiquetas 34x30 - ${activeProduct.name}</title>
           <style>${printCss}</style>
         </head>
         <body>
-          <div class="label-container">
+          <div class="labels-container">
             ${itemsHtml}
           </div>
           <script>
             window.onload = function() {
               window.focus();
               window.print();
-              setTimeout(function() { window.close(); }, 500);
+              setTimeout(function() { window.close(); }, 600);
             };
           <\/script>
         </body>
@@ -411,10 +468,10 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Impressão de Etiquetas com Código de Barras"
-      subtitle={`Etiquetas 34x30mm em 3 Colunas — ${activeProduct.name}`}
+      subtitle={`Etiquetas 34x30mm (3 Colunas / Argox OS-214plus) — ${activeProduct.name}`}
       maxWidth="3xl"
     >
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Top Product Selector & Print Format Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div>
@@ -428,7 +485,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
             >
               {products.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.sku}) — {formatBRL(p.salePrice)}
+                  {p.name} (SKU: {p.sku}) — {formatBRL(p.salePrice)}
                 </option>
               ))}
             </select>
@@ -436,7 +493,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              Formato da Etiqueta / Papel
+              Formato da Etiqueta / Impressora
             </label>
             <select
               value={labelFormat}
@@ -444,7 +501,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               className="w-full border border-slate-300 rounded-lg p-2 text-xs font-bold bg-white text-slate-900 focus:ring-2 focus:ring-brand-primary"
             >
               <option value="thermal_3col_34x30">
-                ⭐ 3 Colunas 34x30mm (Rolo Triplo 106mm — Elgin L42 / Zebra / Argox)
+                ⭐ 3 Colunas 34x30mm (Argox OS-214plus / Rolo 106mm)
               </option>
               <option value="thermal_50x30">
                 🏷️ 1 Coluna 50x30mm (Rolo Individual)
@@ -464,47 +521,50 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
 
         {/* Live Preview Box & Customization Toggles */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {/* 1. Live Visual Preview */}
+          {/* 1. Live Visual Preview (Mirror of User Image 3) */}
           <div className="md:col-span-1 bg-slate-100 p-4 rounded-xl border border-slate-200 text-center">
             <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-center gap-1.5">
               <Grid3X3 className="w-3.5 h-3.5 text-brand-primary" />
               <span>Prévia (34x30mm)</span>
             </div>
 
-            {/* Simulated Label Card (34x30 proportion) */}
-            <div className="bg-white rounded-lg p-2.5 shadow-md border border-slate-300 text-left font-sans text-slate-900 mx-auto max-w-[210px] space-y-1">
+            {/* Simulated Label Card (Exact Mirror of Image 3) */}
+            <div className="bg-white rounded-lg p-3 shadow-md border border-slate-300 text-left font-sans text-slate-900 mx-auto max-w-[220px] space-y-1">
               {showStoreName && (
-                <div className="text-[9px] font-black text-center uppercase border-b border-slate-300 pb-0.5 tracking-tight text-slate-800">
+                <div className="text-[9.5px] font-black text-center uppercase border-b border-slate-300 pb-0.5 tracking-tight text-slate-900">
                   PLANETA CALÇADOS
                 </div>
               )}
-              <div className="font-bold text-[11px] uppercase leading-tight text-slate-900 line-clamp-1">
+              <div className="font-extrabold text-[11px] uppercase leading-tight text-slate-900 line-clamp-1">
                 {activeProduct.name}
               </div>
               <div className="flex justify-between text-[10px] font-semibold text-slate-700">
                 <span>
-                  TAM: <strong className="text-slate-950">{activeProduct.variants[0]?.size || 38}</strong>
+                  TAM: <strong className="text-slate-950 font-black">{activeProduct.variants[0]?.size || 40}</strong>
                 </span>
-                <span className="truncate max-w-[90px]">{activeProduct.variants[0]?.color || 'Padrão'}</span>
+                <span className="capitalize text-slate-600 truncate max-w-[90px]">
+                  {activeProduct.variants[0]?.color || 'bege'}
+                </span>
               </div>
 
+              {/* Barcode only for Product Code / SKU (ex: 26002) */}
               <div className="py-0.5 flex justify-center">
                 <Barcode
-                  value={activeProduct.variants[0]?.ean || `${activeProduct.sku}-${activeProduct.variants[0]?.size || 38}`}
+                  value={activeProduct.sku || '26002'}
                   height={22}
                   moduleWidth={1.05}
-                  fontSize={8}
+                  fontSize={8.5}
                 />
               </div>
 
               <div className="flex justify-between items-end pt-1 border-t border-slate-100">
                 {showLocation && (
-                  <span className="text-[8px] font-bold bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-700">
+                  <span className="text-[8px] font-bold bg-slate-100 px-1 py-0.5 rounded border border-slate-200 text-slate-700 uppercase">
                     {activeProduct.variants[0]?.shelfLocation ? `LOC: ${activeProduct.variants[0].shelfLocation}` : 'LOC: ESTOQUE'}
                   </span>
                 )}
                 {showPrice && (
-                  <span className="text-[11px] font-black text-slate-950 ml-auto">
+                  <span className="text-xs font-black text-slate-950 ml-auto">
                     {formatBRL(activeProduct.salePrice)}
                   </span>
                 )}
@@ -512,7 +572,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
             </div>
 
             <p className="text-[10px] text-slate-500 mt-3 font-medium">
-              Layout: <strong>3 Colunas 34x30mm</strong>
+              Layout: <strong>3 Colunas 34×30mm</strong> • Cód: <strong>{activeProduct.sku}</strong>
             </p>
           </div>
 
@@ -553,7 +613,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
             </div>
 
             {/* Table of Variants & Counts */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+            <div className="border border-slate-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] sticky top-0">
                   <tr>
@@ -568,7 +628,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
                   {activeProduct.variants.map(v => (
                     <tr key={v.id} className="hover:bg-slate-50">
                       <td className="py-2 px-3 font-bold text-slate-900">{v.size}</td>
-                      <td className="py-2 px-3 text-slate-700">{v.color}</td>
+                      <td className="py-2 px-3 text-slate-700 capitalize">{v.color}</td>
                       <td className="py-2 px-3 font-semibold text-slate-600">{v.stock} un</td>
                       <td className="py-2 px-3 text-[11px] text-slate-500">
                         {v.shelfLocation || '—'}
@@ -589,8 +649,8 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               </table>
             </div>
 
-            {/* Customization Options */}
-            <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-700 font-medium">
+            {/* Customization Toggles */}
+            <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-700 font-medium">
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -624,8 +684,29 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           </div>
         </div>
 
+        {/* Argox OS-214plus Print Setup Instructions Banner */}
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 flex items-start gap-2.5">
+          <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-[11px]">
+            <div className="font-black text-amber-900 uppercase">
+              Dica para Impressão Perfeita na Argox OS-214plus (3 Colunas):
+            </div>
+            <ul className="list-disc list-inside space-y-0.5 text-amber-900">
+              <li>
+                Na janela de impressão do Chrome/Edge: defina <strong>Margens como "Nenhuma" (0mm)</strong>.
+              </li>
+              <li>
+                <strong>Desmarque a opção "Cabeçalhos e rodapés"</strong> para remover qualquer texto da borda (como <em>about:blank</em>).
+              </li>
+              <li>
+                O código de barras impresso é o <strong>código do produto ({activeProduct.sku})</strong>, formatado na horizontal sem rotação!
+              </li>
+            </ul>
+          </div>
+        </div>
+
         {/* Modal Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
           <div className="text-xs font-bold text-slate-700">
             Total de Etiquetas: <strong className="text-brand-primary text-sm">{totalLabels} etiquetas</strong>
             <span className="text-slate-400 font-normal ml-2">({Math.ceil(totalLabels / 3)} carreiras de 3 colunas)</span>
@@ -644,7 +725,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
               icon={<Printer className="w-4 h-4 text-slate-950" />}
               className="shadow-gold px-6 font-bold"
             >
-              Imprimir {totalLabels} Etiqueta{totalLabels === 1 ? '' : 's'} (34x30)
+              Imprimir na Argox OS-214plus ({totalLabels} Etiquetas)
             </Button>
           </div>
         </div>
