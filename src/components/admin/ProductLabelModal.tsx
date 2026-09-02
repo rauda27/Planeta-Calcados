@@ -201,7 +201,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       );
 
       if (showStoreName) {
-        pplb += `A${cx + 20},${40 + vy},0,2,1,1,N,"PLANETA CALCADOS"\n`;
+        pplb += `A${cx + 20},${40 + vy},0,2,1,1,N,"JOUMANA COMERCIO"\n`;
       }
       pplb += `A${cx + 8},${60 + vy},0,3,1,1,N,"${name}"\n`;
       pplb += `A${cx + 8},${80 + vy},0,4,1,1,N,"TAM: ${size}"\n`;
@@ -254,7 +254,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
         ctx.fillStyle = '#000000';
         ctx.font = '900 11px Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('PLANETA CALÇADOS', colCenter, y + 8);
+        ctx.fillText('JOUMANA COMÉRCIO', colCenter, y + 8);
         ctx.fillRect(innerX, y + 11, innerW, 1.2);
         y += 16;
       } else {
@@ -672,7 +672,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
                 >
                   {showStoreName && (
                     <div className="text-[9px] font-black text-center uppercase border-b-2 border-slate-900 pb-0.5 tracking-tight text-slate-900">
-                      PLANETA CALÇADOS
+                      JOUMANA COMÉRCIO
                     </div>
                   )}
                   <div className="font-black text-xs uppercase leading-tight truncate text-slate-950 mt-1">

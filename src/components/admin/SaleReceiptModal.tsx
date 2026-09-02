@@ -120,7 +120,7 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
         <body>
           <!-- 1. CABEÇALHO DA LOJA -->
           <div class="text-center pb-2 border-b-dashed">
-            <div class="font-black uppercase" style="font-size: 13px;">PLANETA CALÇADOS QB LTDA</div>
+            <div class="font-black uppercase" style="font-size: 13px;">JOUMANA COMÉRCIO DE ROUPAS E CALÇADOS LTDA</div>
             <div class="font-bold" style="font-size: 11px;">"O Planeta aos seus pés"</div>
             <div class="sub-text">CNPJ: 61.033.123/0001-45 • IE: 114.890.123.110</div>
             <div class="sub-text">${STORE_ADDRESS}</div>
@@ -244,7 +244,7 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
               `}
 
               <p class="legal-text pt-1">
-                Pagarei por esta <strong>NOTA PROMISSÓRIA</strong> à empresa <strong>PLANETA CALÇADOS QB LTDA</strong>, CNPJ 61.033.123/0001-45, ou à sua ordem, na praça de Quatro Barras - PR, a quantia de <strong>${formatBRL(sale.total)}</strong> nas datas e parcelas acima discriminadas. Em caso de mora/atraso, incidirá multa de 2% (Art. 52 CDC) e juros legais de 1% ao mês pro rata die (Art. 406 CC).
+                Pagarei por esta <strong>NOTA PROMISSÓRIA</strong> à empresa <strong>JOUMANA COMÉRCIO DE ROUPAS E CALÇADOS LTDA</strong>, CNPJ 61.033.123/0001-45, ou à sua ordem, na praça de Quatro Barras - PR, a quantia de <strong>${formatBRL(sale.total)}</strong> nas datas e parcelas acima discriminadas. Em caso de mora/atraso, incidirá multa de 2% (Art. 52 CDC) e juros legais de 1% ao mês pro rata die (Art. 406 CC).
               </p>
 
               <div class="sub-text pt-2">
@@ -304,7 +304,7 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
           {/* ===================== 1. CABEÇALHO PADRÃO FISCAL ===================== */}
           <div className="text-center pb-2.5 border-b border-dashed border-slate-400 space-y-0.5">
             <h2 className="text-sm font-black tracking-wider text-slate-900 uppercase">
-              PLANETA CALÇADOS QB LTDA
+              JOUMANA COMÉRCIO DE ROUPAS E CALÇADOS LTDA
             </h2>
             <p className="text-[11px] font-bold text-slate-700">"O Planeta aos seus pés"</p>
             <p className="text-[10px] text-slate-600">
@@ -468,7 +468,7 @@ export const SaleReceiptModal: React.FC<SaleReceiptModalProps> = ({
 
               {/* Legal Promissory Note Text */}
               <p className="text-[9px] leading-snug text-justify text-slate-800 pt-1">
-                Pagarei por esta <strong>NOTA PROMISSÓRIA</strong> à empresa <strong>PLANETA CALÇADOS QB LTDA</strong>, CNPJ 61.033.123/0001-45, ou à sua ordem, na praça de Quatro Barras - PR, a quantia de <strong>{formatBRL(sale.total)}</strong> nas datas e parcelas acima discriminadas. Em caso de mora/atraso, incidirá multa de 2% (Art. 52 CDC) e juros legais de 1% ao mês pro rata die (Art. 406 CC).
+                Pagarei por esta <strong>NOTA PROMISSÓRIA</strong> à empresa <strong>JOUMANA COMÉRCIO DE ROUPAS E CALÇADOS LTDA</strong>, CNPJ 61.033.123/0001-45, ou à sua ordem, na praça de Quatro Barras - PR, a quantia de <strong>{formatBRL(sale.total)}</strong> nas datas e parcelas acima discriminadas. Em caso de mora/atraso, incidirá multa de 2% (Art. 52 CDC) e juros legais de 1% ao mês pro rata die (Art. 406 CC).
               </p>
               
               <div className="text-[10px] space-y-0.5 pt-1">

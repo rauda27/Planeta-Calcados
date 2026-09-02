@@ -131,7 +131,7 @@ export const CashRegisterClosureModal: React.FC<CashRegisterClosureModalProps> =
 
           {/* Closure Slip Header */}
           <div className="text-center pb-3 border-b border-dashed border-slate-300">
-            <h2 className="text-base font-black text-slate-900 uppercase">PLANETA CALÇADOS QB</h2>
+            <h2 className="text-base font-black text-slate-900 uppercase">JOUMANA COMÉRCIO DE ROUPAS E CALÇADOS LTDA</h2>
             <p className="text-[10px] text-slate-500">Av. Dom Pedro II, 96 - Centro, Quatro Barras - PR</p>
             <p className="text-[11px] font-bold text-slate-700 uppercase mt-1">RELATÓRIO DE FECHAMENTO DE CAIXA DIÁRIO</p>
             <p className="text-[10px] text-slate-500 mt-0.5">DATA: {formatDateBR(selectedDate)} | EMISSÃO: {new Date().toLocaleTimeString('pt-BR')}</p>
