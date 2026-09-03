@@ -14,7 +14,7 @@ interface BillFormModalProps {
 }
 
 export const BillFormModal: React.FC<BillFormModalProps> = ({ isOpen, onClose }) => {
-  const { addBill } = useStore();
+  const { addBill, suppliers } = useStore();
 
   const [supplier, setSupplier] = useState('');
   const [description, setDescription] = useState('');
@@ -67,13 +67,23 @@ export const BillFormModal: React.FC<BillFormModalProps> = ({ isOpen, onClose })
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Fornecedor / Favorecido *"
-          value={supplier}
-          onChange={e => setSupplier(e.target.value)}
-          placeholder="Ex: Fornecedor, Enel, Aluguel Loja..."
-          required
-        />
+        <div>
+          <Input
+            label="Fornecedor / Favorecido *"
+            value={supplier}
+            onChange={e => setSupplier(e.target.value)}
+            placeholder="Ex: Beira Rio, Dakota, Grendene, Rafarillo..."
+            required
+            list="suppliers-datalist"
+          />
+          <datalist id="suppliers-datalist">
+            {suppliers.map(s => (
+              <option key={s.id} value={s.tradeName}>
+                {s.corporateName ? `${s.corporateName} (${s.cnpjCpf})` : s.cnpjCpf}
+              </option>
+            ))}
+          </datalist>
+        </div>
 
         <Input
           label="Descrição do Gasto / Nota Fiscal"

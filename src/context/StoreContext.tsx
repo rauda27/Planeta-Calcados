@@ -18,6 +18,7 @@ import {
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { LEGACY_CUSTOMERS, LEGACY_PROMISSORY_CONTRACTS } from '../lib/legacyDebtorsData';
+import { LEGACY_SUPPLIERS } from '../lib/legacySuppliersData';
 
 export const DEFAULT_BANNERS: StoreBanners = {
   heroBannerImage: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=1000&q=80',
@@ -192,7 +193,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (savedSales) setSales(JSON.parse(savedSales));
         if (savedCart) setCart(JSON.parse(savedCart));
         if (savedBanners) setBanners({ ...DEFAULT_BANNERS, ...JSON.parse(savedBanners) });
-        if (savedSuppliers) setSuppliers(JSON.parse(savedSuppliers));
+
+        // Suppliers Cache & Seed from Legacy System
+        let initialSuppliers: Supplier[] = LEGACY_SUPPLIERS;
+        if (savedSuppliers) {
+          try {
+            const parsed = JSON.parse(savedSuppliers);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const existingIds = new Set(parsed.map((s: Supplier) => s.id || s.cnpjCpf));
+              const missingLegacy = LEGACY_SUPPLIERS.filter(l => !existingIds.has(l.id) && !existingIds.has(l.cnpjCpf));
+              initialSuppliers = [...parsed, ...missingLegacy];
+            }
+          } catch {}
+        }
+        setSuppliers(initialSuppliers);
+        saveToLocalStorage(STORAGE_KEYS.SUPPLIERS, initialSuppliers);
 
         // Customers Cache & Seed from Legacy System
         let initialCustomers: Customer[] = LEGACY_CUSTOMERS;
@@ -325,9 +340,26 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           snapshot.forEach(docSnap => {
             cloudSuppliers.push(docSnap.data() as Supplier);
           });
-          cloudSuppliers.sort((a, b) => (a.tradeName || '').localeCompare(b.tradeName || ''));
-          setSuppliers(cloudSuppliers);
-          saveToLocalStorage(STORAGE_KEYS.SUPPLIERS, cloudSuppliers);
+
+          if (cloudSuppliers.length === 0) {
+            setSuppliers(LEGACY_SUPPLIERS);
+            saveToLocalStorage(STORAGE_KEYS.SUPPLIERS, LEGACY_SUPPLIERS);
+            LEGACY_SUPPLIERS.forEach(sup => {
+              setDoc(doc(db, 'suppliers', sup.id), sanitizeForFirestore(sup)).catch(console.error);
+            });
+          } else {
+            // Check if any legacy suppliers are missing in cloud, and upload them
+            const existingIds = new Set(cloudSuppliers.map(s => s.id || s.cnpjCpf));
+            const missingLegacy = LEGACY_SUPPLIERS.filter(l => !existingIds.has(l.id) && !existingIds.has(l.cnpjCpf));
+            if (missingLegacy.length > 0) {
+              missingLegacy.forEach(sup => {
+                setDoc(doc(db, 'suppliers', sup.id), sanitizeForFirestore(sup)).catch(console.error);
+              });
+            }
+            cloudSuppliers.sort((a, b) => (a.tradeName || '').localeCompare(b.tradeName || ''));
+            setSuppliers(cloudSuppliers);
+            saveToLocalStorage(STORAGE_KEYS.SUPPLIERS, cloudSuppliers);
+          }
         },
         error => {
           console.error('🔥 Firestore Suppliers error:', error);

@@ -58,7 +58,10 @@ export const CustomersSuppliersModule: React.FC = () => {
       (s.corporateName && s.corporateName.toLowerCase().includes(q)) ||
       (s.cnpjCpf && s.cnpjCpf.includes(q)) ||
       (s.contactPerson && s.contactPerson.toLowerCase().includes(q)) ||
-      (s.phone && s.phone.includes(q))
+      (s.phone && s.phone.includes(q)) ||
+      (s.city && s.city.toLowerCase().includes(q)) ||
+      (s.uf && s.uf.toLowerCase().includes(q)) ||
+      (s.notes && s.notes.toLowerCase().includes(q))
     );
   });
 
