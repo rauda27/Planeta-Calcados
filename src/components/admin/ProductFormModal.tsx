@@ -55,7 +55,7 @@ const DEPARTMENT_SIZES: Record<Department, (string | number)[]> = {
 
 const DEPARTMENT_CATEGORIES: Record<Department, ProductCategory[]> = {
   'Calçados': ['Scarpin', 'Tênis', 'Sapato Social', 'Rasteira', 'Sandália', 'Bota', 'Mocassim', 'Sapatilha', 'Chinelos'],
-  'Roupas': ['Camisetas', 'Calças', 'Jaquetas', 'Vestidos', 'Polos'],
+  'Roupas': ['Blusa', 'Body', 'Conjunto', 'Regata', 'Short', 'Camisetas', 'Vestidos', 'Calças', 'Jaquetas', 'Polos'],
   'Acessórios': ['Bonés', 'Cintos', 'Bolsas', 'Carteiras'],
   'Perfumes': ['Perfumes', 'Colônias', 'Cosméticos'],
 };

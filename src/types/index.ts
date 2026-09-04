@@ -21,6 +21,11 @@ export type ProductCategory =
   | 'Jaquetas'
   | 'Vestidos'
   | 'Polos'
+  | 'Body'
+  | 'Conjunto'
+  | 'Regata'
+  | 'Blusa'
+  | 'Short'
   // Acessórios
   | 'Bonés'
   | 'Cintos'
