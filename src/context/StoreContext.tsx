@@ -19,6 +19,8 @@ import { db, isFirebaseConfigured } from '../lib/firebase';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { LEGACY_CUSTOMERS, LEGACY_PROMISSORY_CONTRACTS } from '../lib/legacyDebtorsData';
 import { LEGACY_SUPPLIERS } from '../lib/legacySuppliersData';
+import { LEGACY_PRODUCTS_766 } from '../lib/legacyProductsData';
+import { normalizeBrand } from '../lib/brandUtils';
 
 export const DEFAULT_BANNERS: StoreBanners = {
   heroBannerImage: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=1000&q=80',
@@ -188,7 +190,25 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const savedSuppliers = localStorage.getItem(STORAGE_KEYS.SUPPLIERS);
         const savedPromissories = localStorage.getItem(STORAGE_KEYS.PROMISSORIES);
 
-        if (savedProducts) setProducts(JSON.parse(savedProducts));
+        // Products Cache & Seed from Legacy System (766000+)
+        let initialProducts: Product[] = LEGACY_PRODUCTS_766;
+        if (savedProducts) {
+          try {
+            const parsed = JSON.parse(savedProducts);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const normalizedParsed = parsed.map((p: Product) => {
+                const normBrand = normalizeBrand(p);
+                return p.brand !== normBrand ? { ...p, brand: normBrand } : p;
+              });
+              const existingIds = new Set(normalizedParsed.map((p: Product) => p.id || p.sku));
+              const missingLegacy = LEGACY_PRODUCTS_766.filter(l => !existingIds.has(l.id) && !existingIds.has(l.sku));
+              initialProducts = [...normalizedParsed, ...missingLegacy];
+            }
+          } catch {}
+        }
+        setProducts(initialProducts);
+        saveToLocalStorage(STORAGE_KEYS.PRODUCTS, initialProducts);
+
         if (savedBills) setBills(JSON.parse(savedBills));
         if (savedSales) setSales(JSON.parse(savedSales));
         if (savedCart) setCart(JSON.parse(savedCart));
@@ -257,13 +277,46 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setIsCloudConnected(true);
           setCloudError(null);
           const cloudProducts: Product[] = [];
+          const productsToUpdateInCloud: Product[] = [];
+
           snapshot.forEach(docSnap => {
-            cloudProducts.push(docSnap.data() as Product);
+            const data = docSnap.data() as Product;
+            const normBrand = normalizeBrand(data);
+            if (data.brand !== normBrand) {
+              const updatedProduct = { ...data, brand: normBrand };
+              cloudProducts.push(updatedProduct);
+              productsToUpdateInCloud.push(updatedProduct);
+            } else {
+              cloudProducts.push(data);
+            }
           });
-          cloudProducts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          
-          setProducts(cloudProducts);
-          saveToLocalStorage(STORAGE_KEYS.PRODUCTS, cloudProducts);
+
+          // Auto repair legacy/composite brand tags in Firebase Firestore
+          if (productsToUpdateInCloud.length > 0) {
+            productsToUpdateInCloud.forEach(prod => {
+              setDoc(doc(db, 'products', prod.id), sanitizeForFirestore(prod)).catch(console.error);
+            });
+          }
+
+          if (cloudProducts.length === 0) {
+            setProducts(LEGACY_PRODUCTS_766);
+            saveToLocalStorage(STORAGE_KEYS.PRODUCTS, LEGACY_PRODUCTS_766);
+            LEGACY_PRODUCTS_766.forEach(prod => {
+              setDoc(doc(db, 'products', prod.id), sanitizeForFirestore(prod)).catch(console.error);
+            });
+          } else {
+            // Check if any legacy products are missing in cloud, and upload them
+            const existingIds = new Set(cloudProducts.map(p => p.id || p.sku));
+            const missingLegacy = LEGACY_PRODUCTS_766.filter(l => !existingIds.has(l.id) && !existingIds.has(l.sku));
+            if (missingLegacy.length > 0) {
+              missingLegacy.forEach(prod => {
+                setDoc(doc(db, 'products', prod.id), sanitizeForFirestore(prod)).catch(console.error);
+              });
+            }
+            cloudProducts.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+            setProducts(cloudProducts);
+            saveToLocalStorage(STORAGE_KEYS.PRODUCTS, cloudProducts);
+          }
         },
         error => {
           console.error('🔥 Firestore Products error:', error);
@@ -428,8 +481,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // -------------------------------------------------------------
   const addProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
+    const brand = normalizeBrand(productData);
     const newProduct: Product = {
       ...productData,
+      brand,
       id: `prod_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: now,
       updatedAt: now,
@@ -460,7 +515,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setProducts(prev => {
       const updated = prev.map(p => {
         if (p.id === id) {
-          updatedItem = { ...p, ...updatedFields, updatedAt: now };
+          const merged = { ...p, ...updatedFields, updatedAt: now };
+          if (updatedFields.brand !== undefined || updatedFields.name !== undefined || updatedFields.model !== undefined) {
+            merged.brand = normalizeBrand(merged);
+          }
+          updatedItem = merged;
           return updatedItem;
         }
         return p;

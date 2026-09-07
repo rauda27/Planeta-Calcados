@@ -141,7 +141,7 @@ export const LEGACY_SUPPLIERS: Supplier[] = [
   },
   {
     id: 'sup_88379771003602',
-    tradeName: 'BEIRA RIO / MOLECA / VIZZANO',
+    tradeName: 'CALÇADOS BEIRA RIO',
     corporateName: 'CALCADOS BEIRA RIO S/A',
     cnpjCpf: '88.379.771/0036-02',
     phone: '(51) 3584-2200',
@@ -153,7 +153,7 @@ export const LEGACY_SUPPLIERS: Supplier[] = [
   },
   {
     id: 'sup_88104328001685',
-    tradeName: 'RAMARIM / COMFORTFLEX',
+    tradeName: 'CALÇADOS RAMARIM',
     corporateName: 'CALCADOS RAMARIM LTDA',
     cnpjCpf: '88.104.328/0016-85',
     phone: '(51) 3563-8500',

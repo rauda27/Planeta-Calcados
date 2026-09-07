@@ -35,7 +35,7 @@ interface ProductLabelModalProps {
 }
 
 type QZStatus = 'idle' | 'connecting' | 'connected' | 'error';
-type LabelItem = { product: Product; variant: ProductVariant; sku: string };
+type LabelItem = { product: Product; variant: ProductVariant; sku: string; ean: string };
 
 // ---------------------------------------------------------------------------
 // Physical constants — Argox OS-214plus + 3-column 35x30mm / 33x22mm roll
@@ -60,6 +60,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [variantPrintCounts, setVariantPrintCounts] = useState<Record<string, number>>({});
   const [showStoreName, setShowStoreName] = useState(true);
+  const [showEan, setShowEan]             = useState(true);
   const [showPrice, setShowPrice]         = useState(true);
   const [showLocation, setShowLocation]   = useState(true);
 
@@ -135,8 +136,9 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
   const labelsToPrint: LabelItem[] = [];
   activeProduct.variants.forEach(variant => {
     const count = variantPrintCounts[variant.id] || 0;
+    const eanCode = variant.ean || activeProduct.mainEan || '';
     for (let i = 0; i < count; i++)
-      labelsToPrint.push({ product: activeProduct, variant, sku: activeProduct.sku || '26001' });
+      labelsToPrint.push({ product: activeProduct, variant, sku: activeProduct.sku || '26001', ean: eanCode });
   });
   const totalLabels = labelsToPrint.length;
 
@@ -195,6 +197,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       const size  = clean(String(item.variant.size));
       const color = clean(item.variant.color.slice(0, 8).toUpperCase());
       const sku   = clean(item.sku);
+      const ean   = clean(item.ean);
       const price = clean(formatBRL(item.product.salePrice));
       const loc   = clean(
         item.variant.shelfLocation ? `LOC:${item.variant.shelfLocation}` : 'LOC:EST'
@@ -206,13 +209,16 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       pplb += `A${cx + 8},${60 + vy},0,3,1,1,N,"${name}"\n`;
       pplb += `A${cx + 8},${80 + vy},0,4,1,1,N,"TAM: ${size}"\n`;
       pplb += `A${cx + 130},${80 + vy},0,2,1,1,N,"${color}"\n`;
-      pplb += `B${cx + 8},${102 + vy},0,1,1,2,42,B,"${sku}"\n`;
-      pplb += `A${cx + 50},${148 + vy},0,3,1,1,N,"${sku}"\n`;
+      pplb += `B${cx + 8},${102 + vy},0,1,1,2,40,B,"${sku}"\n`;
+      pplb += `A${cx + 50},${146 + vy},0,3,1,1,N,"${sku}"\n`;
+      if (showEan && ean) {
+        pplb += `A${cx + 15},${164 + vy},0,2,1,1,N,"EAN:${ean}"\n`;
+      }
       if (showLocation) {
-        pplb += `A${cx + 8},${174 + vy},0,2,1,1,N,"${loc}"\n`;
+        pplb += `A${cx + 8},${182 + vy},0,2,1,1,N,"${loc}"\n`;
       }
       if (showPrice) {
-        pplb += `A${cx + 85},${168 + vy},0,5,1,1,N,"${price}"\n`;
+        pplb += `A${cx + 85},${176 + vy},0,5,1,1,N,"${price}"\n`;
       }
     });
 
@@ -289,7 +295,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       const moduleW  = Math.min(1.22, (innerW - 6) / binary.length);
       const barcodeW = binary.length * moduleW;
       const barcodeX = colCenter - barcodeW / 2;
-      const barcodeH = 42;
+      const barcodeH = 38;
 
       ctx.fillStyle = '#000000';
       let bi = 0;
@@ -309,10 +315,19 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
       y += barcodeH + 2;
 
       // Dígitos do SKU (CÓDIGO AMPLIADO, ESPAÇADO E EXTRA LEGÍVEL)
-      ctx.font = '900 16px "Courier New", monospace';
+      ctx.font = '900 15px "Courier New", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(item.sku.split('').join('  '), colCenter, y + 12);
-      y += 16;
+      ctx.fillText(item.sku.split('').join('  '), colCenter, y + 11);
+      y += 14;
+
+      // Código EAN (se habilitado e presente)
+      if (showEan && item.ean) {
+        ctx.font = '900 10.5px "Courier New", monospace';
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.fillText(`EAN: ${item.ean}`, colCenter, y + 8);
+        y += 11;
+      }
 
       // Linha divisória
       ctx.fillStyle = '#cbd5e1';
@@ -683,8 +698,13 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
                     <span className="uppercase text-slate-800 truncate max-w-[65px] font-black text-xs">{variant?.color}</span>
                   </div>
                   <div className="flex justify-center py-0.5">
-                    <Barcode value={activeProduct.sku || '26002'} height={40} moduleWidth={1.3} fontSize={12} />
+                    <Barcode value={activeProduct.sku || '26002'} height={38} moduleWidth={1.25} fontSize={12} />
                   </div>
+                  {showEan && (variant?.ean || activeProduct.mainEan) && (
+                    <div className="text-[9px] font-mono text-center text-slate-700 font-bold -mt-0.5 mb-0.5">
+                      EAN: {variant?.ean || activeProduct.mainEan}
+                    </div>
+                  )}
                   <div className="flex justify-between items-end border-t border-slate-200 pt-1">
                     {showLocation && (
                       <span className="text-[9px] font-black bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300 uppercase text-slate-800">
@@ -755,6 +775,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
           <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-700 font-medium">
             {[
               { label: 'Nome da Loja',     state: showStoreName, setter: setShowStoreName },
+              { label: 'Código EAN',       state: showEan,       setter: setShowEan       },
               { label: 'Preço de Venda',   state: showPrice,     setter: setShowPrice     },
               { label: 'Local no Estoque', state: showLocation,  setter: setShowLocation  },
             ].map(({ label, state, setter }) => (

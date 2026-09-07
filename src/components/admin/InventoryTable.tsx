@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { ProductLabelModal } from './ProductLabelModal';
+import { normalizeBrand } from '../../lib/brandUtils';
 
 interface InventoryTableProps {
   onOpenProductModal: (product?: Product) => void;
@@ -27,11 +28,17 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({ onOpenProductMod
   // Collapsed Brand Cards state
   const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
 
+  // Ensure all products have their proper normalized brand
+  const normalizedProducts = products.map(p => {
+    const brand = normalizeBrand(p);
+    return p.brand !== brand ? { ...p, brand } : p;
+  });
+
   // Dynamic dropdown options
   const departments = ['Todos', 'Calçados', 'Roupas', 'Acessórios', 'Perfumes'];
-  const brands = ['Todas', ...Array.from(new Set(products.map(p => p.brand)))];
+  const brands = ['Todas', ...Array.from(new Set(normalizedProducts.map(p => p.brand))).sort((a, b) => a.localeCompare(b))];
 
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = normalizedProducts.filter(p => {
     const matchesSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
