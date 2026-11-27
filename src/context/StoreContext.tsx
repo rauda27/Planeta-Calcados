@@ -614,14 +614,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         cloudSeed = (snap.exists() ? (snap.data() as SeedVersions) : {}) || {};
       })
       .catch(err => {
-        // Sem o marcador (ex.: offline), nao recarrega dados legados para nao sobrescrever nada
+        // Sem o marcador (ex.: offline): mantem vazio. A carga legada so acontece com dados
+        // vindos do servidor (snapshots do cache sao ignorados por claimSeed), entao nada e
+        // sobrescrito e a importacao inicial continua possivel quando a conexao voltar.
         console.warn('Nao foi possivel ler store_settings/seed:', err);
-        cloudSeed = {
-          products: LEGACY_SEED_VERSION,
-          customers: LEGACY_SEED_VERSION,
-          suppliers: LEGACY_SEED_VERSION,
-          promissories: LEGACY_SEED_VERSION,
-        };
+        cloudSeed = {};
       })
       .finally(subscribe);
 
@@ -647,11 +644,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     commitProducts([newProduct, ...productsRef.current]);
+    // Confirma na hora (o setDoc so resolve quando o servidor responde, o que nao ocorre offline)
+    showToast(`Produto "${newProduct.name}" cadastrado com sucesso!`, 'success');
 
     try {
       await cloudSet('products', newProduct.id, newProduct);
       if (cloudEnabled()) setIsCloudConnected(true);
-      showToast(`Produto "${newProduct.name}" cadastrado com sucesso!`, 'success');
     } catch {
       showToast(`Produto "${newProduct.name}" salvo apenas neste dispositivo (falha na nuvem).`, 'warning');
     }
@@ -672,10 +670,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
     if (!updatedItem) return;
     commitProducts(next);
+    showToast('Produto atualizado com sucesso!', 'success');
 
     try {
       await cloudSet('products', id, updatedItem);
-      showToast('Produto atualizado com sucesso!', 'success');
     } catch {
       showToast('Produto atualizado apenas neste dispositivo (falha na nuvem).', 'warning');
     }
@@ -942,10 +940,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     commitBills([newBill, ...billsRef.current]);
+    showToast('Conta a pagar cadastrada com sucesso!', 'success');
 
     try {
       await cloudSet('bills', newBill.id, newBill);
-      showToast('Conta a pagar cadastrada com sucesso!', 'success');
     } catch {
       showToast('Conta salva apenas neste dispositivo (falha na nuvem).', 'warning');
     }

@@ -21,7 +21,8 @@ export const toLocalMonthStr = (input: Date | string | number = new Date()): str
 
 /** Diferenca em dias corridos entre duas datas YYYY-MM-DD (b - a). */
 export const diffInDays = (a: string, b: string): number => {
-  const da = new Date(`${a.slice(0, 10)}T12:00:00`);
-  const db = new Date(`${b.slice(0, 10)}T12:00:00`);
+  if (!a || !b) return NaN;
+  const da = new Date(`${String(a).slice(0, 10)}T12:00:00`);
+  const db = new Date(`${String(b).slice(0, 10)}T12:00:00`);
   return Math.round((db.getTime() - da.getTime()) / 86_400_000);
 };
