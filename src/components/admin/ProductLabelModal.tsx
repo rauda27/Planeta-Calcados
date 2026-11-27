@@ -455,7 +455,7 @@ export const ProductLabelModal: React.FC<ProductLabelModalProps> = ({
     if (test.length === 0) {
       const v = activeProduct.variants[0];
       if (!v) { alert('Produto sem variantes.'); return; }
-      test = [v, v, v].map(variant => ({ product: activeProduct, variant, sku: activeProduct.sku || '26001' }));
+      test = [v, v, v].map(variant => ({ product: activeProduct, variant, sku: activeProduct.sku || '26001', ean: variant.ean || activeProduct.mainEan || '' }));
     }
     while (test.length < 3) test.push(test[test.length - 1] || test[0]);
     handlePrint(test.slice(0, 3));

@@ -6,30 +6,34 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CashRegisterClosureModal } from './CashRegisterClosureModal';
 import { DollarSign, TrendingUp, Calendar, CreditCard, PieChart, Award, ShoppingBag, Lock, ArrowUpRight, Sun, Calculator } from 'lucide-react';
+import { toLocalDateStr, toLocalMonthStr, diffInDays } from '../../lib/dateUtils';
 
 export const RevenueDashboard: React.FC = () => {
   const { sales, products } = useStore();
   const [period, setPeriod] = useState<'today' | '7days' | 'month' | 'year' | 'all'>('all');
   const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
 
-  const todayStr = '2026-08-10';
+  const todayStr = toLocalDateStr();
+  const monthStr = toLocalMonthStr();
+  const yearStr = todayStr.slice(0, 4);
 
   // Filter sales by period
   const filteredSales = sales.filter(s => {
     if (s.status === 'cancelled') return false;
 
+    const saleDay = toLocalDateStr(s.createdAt);
     if (period === 'today') {
-      return s.createdAt.startsWith(todayStr);
+      return saleDay === todayStr;
     }
     if (period === '7days') {
-      const diffDays = (new Date(todayStr).getTime() - new Date(s.createdAt).getTime()) / (1000 * 3600 * 24);
+      const diffDays = diffInDays(saleDay, todayStr);
       return diffDays >= 0 && diffDays <= 7;
     }
     if (period === 'month') {
-      return s.createdAt.startsWith('2026-08');
+      return saleDay.startsWith(monthStr);
     }
     if (period === 'year') {
-      return s.createdAt.startsWith('2026');
+      return saleDay.startsWith(yearStr);
     }
     return true;
   });
@@ -44,7 +48,7 @@ export const RevenueDashboard: React.FC = () => {
   const ticketMedio = salesCount > 0 ? netRevenue / salesCount : 0;
 
   // 2. TOTAL VENDAS DIÁRIA (HOJE)
-  const todaySales = sales.filter(s => s.status !== 'cancelled' && s.createdAt.startsWith(todayStr));
+  const todaySales = sales.filter(s => s.status !== 'cancelled' && toLocalDateStr(s.createdAt) === todayStr);
   const todaySalesTotal = todaySales.reduce((sum, s) => sum + s.total, 0);
   const todaySalesCount = todaySales.length;
   const todayTicketMedio = todaySalesCount > 0 ? todaySalesTotal / todaySalesCount : 0;
@@ -53,7 +57,7 @@ export const RevenueDashboard: React.FC = () => {
   // Group sales by YYYY-MM
   const monthsMap: Record<string, number> = {};
   sales.filter(s => s.status !== 'cancelled').forEach(s => {
-    const monthKey = s.createdAt.substring(0, 7); // e.g. "2026-08"
+    const monthKey = toLocalMonthStr(s.createdAt); // e.g. "2026-08"
     monthsMap[monthKey] = (monthsMap[monthKey] || 0) + s.total;
   });
   const activeMonthsCount = Math.max(1, Object.keys(monthsMap).length);
@@ -63,7 +67,7 @@ export const RevenueDashboard: React.FC = () => {
   // 4. MÉDIA DIÁRIA DE VENDAS
   const daysMap: Record<string, number> = {};
   sales.filter(s => s.status !== 'cancelled').forEach(s => {
-    const dayKey = s.createdAt.substring(0, 10); // e.g. "2026-08-10"
+    const dayKey = toLocalDateStr(s.createdAt); // e.g. "2026-08-10"
     daysMap[dayKey] = (daysMap[dayKey] || 0) + s.total;
   });
   const activeDaysCount = Math.max(1, Object.keys(daysMap).length);

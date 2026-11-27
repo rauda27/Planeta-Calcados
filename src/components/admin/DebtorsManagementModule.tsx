@@ -24,6 +24,7 @@ import {
   Filter,
   Scale,
 } from 'lucide-react';
+import { toLocalDateStr } from '../../lib/dateUtils';
 
 export const DebtorsManagementModule: React.FC = () => {
   const {
@@ -40,7 +41,7 @@ export const DebtorsManagementModule: React.FC = () => {
   const [selectedInstallmentForPayment, setSelectedInstallmentForPayment] = useState<PromissoryInstallment | null>(null);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateStr();
 
   // Helper to format date
   const formatDateBR = (dateStr?: string) => {

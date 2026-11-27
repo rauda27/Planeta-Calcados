@@ -8,6 +8,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { CheckCircle2, DollarSign, Calendar, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { toLocalDateStr } from '../../lib/dateUtils';
 
 interface PayInstallmentModalProps {
   contract: PromissoryContract | null;
@@ -28,7 +29,7 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
   const [paidDate, setPaidDate] = useState<string>('');
   const [receivingLocation, setReceivingLocation] = useState<string>('Balcão Quatro Barras');
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateStr();
 
   // Dynamic legal interest and fine calculation
   const overdueCalc = installment
@@ -37,7 +38,7 @@ export const PayInstallmentModal: React.FC<PayInstallmentModalProps> = ({
 
   useEffect(() => {
     if (installment) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateStr();
       setPaidDate(today);
       const calc = calculateOverdueDebt(installment.amount, installment.dueDate, today);
       setPaidAmount(calc.totalCorrectedAmount);

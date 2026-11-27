@@ -8,6 +8,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { Copy, Check, FileText, Download, Eye, Trash2, CheckCircle2, AlertTriangle, Clock, ExternalLink } from 'lucide-react';
+import { toLocalDateStr, diffInDays } from '../../lib/dateUtils';
 
 interface BillsTableProps {
   activeFilter: 'hoje' | 'proximos' | 'vencidos' | 'pagos' | 'todos';
@@ -16,7 +17,7 @@ interface BillsTableProps {
 
 export const BillsTable: React.FC<BillsTableProps> = ({ activeFilter, onOpenBillModal }) => {
   const { bills, updateBillStatus, deleteBill, showToast } = useStore();
-  const todayStr = '2026-08-10';
+  const todayStr = toLocalDateStr();
 
   const [viewingAttachment, setViewingAttachment] = useState<{ title: string; url: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export const BillsTable: React.FC<BillsTableProps> = ({ activeFilter, onOpenBill
     }
     if (activeFilter === 'proximos') {
       if (bill.status === 'Pago') return false;
-      const diffDays = (new Date(bill.dueDate).getTime() - new Date(todayStr).getTime()) / (1000 * 3600 * 24);
+      const diffDays = diffInDays(todayStr, bill.dueDate);
       return diffDays > 0 && diffDays <= 7;
     }
     if (activeFilter === 'vencidos') {
