@@ -4,7 +4,7 @@ const nextConfig = {
   output: 'export',
   trailingSlash: true,
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: true,

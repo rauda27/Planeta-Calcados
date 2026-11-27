@@ -30,8 +30,8 @@ export function calculateOverdueDebt(
   }
 
   try {
-    const targetDate = targetDateStr ? new Date(targetDateStr + 'T23:59:59') : new Date();
-    const dueDate = new Date(dueDateStr + 'T23:59:59');
+    const targetDate = targetDateStr ? new Date(targetDateStr.slice(0, 10) + 'T23:59:59') : new Date();
+    const dueDate = new Date(String(dueDateStr).slice(0, 10) + 'T23:59:59');
 
     const diffMs = targetDate.getTime() - dueDate.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));

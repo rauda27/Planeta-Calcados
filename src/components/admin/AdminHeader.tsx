@@ -20,6 +20,7 @@ import { useStore } from '../../context/StoreContext';
 import { Button } from '../ui/Button';
 import { StoreLogo } from '../ui/StoreLogo';
 import { getStoredAuthSession, logoutAdminSession, AuthRole } from './AdminAuthGuard';
+import { toLocalDateStr } from '../../lib/dateUtils';
 
 export type AdminTab = 'inventory' | 'financial' | 'sales' | 'cadastros' | 'devedores';
 
@@ -38,7 +39,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange
     setRole(session.role);
   }, []);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateStr();
   const todayBills = bills.filter(b => b.dueDate === todayStr && b.status === 'Pendente');
   
   const pendingPromissoriesCount = promissoryContracts.filter(

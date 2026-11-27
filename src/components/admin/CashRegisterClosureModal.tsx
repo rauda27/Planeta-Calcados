@@ -6,6 +6,7 @@ import { useStore } from '../../context/StoreContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { toLocalDateStr } from '../../lib/dateUtils';
 import { Printer, DollarSign, QrCode, CreditCard, FileText, Lock, Calendar, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 interface CashRegisterClosureModalProps {
@@ -18,7 +19,7 @@ export const CashRegisterClosureModal: React.FC<CashRegisterClosureModalProps> =
   onClose,
 }) => {
   const { sales } = useStore();
-  const [selectedDate, setSelectedDate] = useState<string>('2026-08-10');
+  const [selectedDate, setSelectedDate] = useState<string>(() => toLocalDateStr());
   const [initialDrawerCash, setInitialDrawerCash] = useState<number>(200.00); // Fundo de caixa inicial
 
   const formatBRL = (val: number) => `R$ ${val.toFixed(2).replace('.', ',')}`;
@@ -30,7 +31,7 @@ export const CashRegisterClosureModal: React.FC<CashRegisterClosureModalProps> =
 
   // Filter sales for the selected closure date
   const dailySales = sales.filter(
-    s => s.status !== 'cancelled' && s.createdAt.startsWith(selectedDate)
+    s => s.status !== 'cancelled' && toLocalDateStr(s.createdAt) === selectedDate
   );
 
   // Financial Breakdown for Closure

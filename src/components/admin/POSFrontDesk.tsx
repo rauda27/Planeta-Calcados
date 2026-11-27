@@ -34,6 +34,7 @@ import {
   UserPlus,
   Calendar,
 } from 'lucide-react';
+import { toLocalDateStr } from '../../lib/dateUtils';
 
 interface POSFrontDeskProps {
   onSaleSuccess: (completedSale: any) => void;
@@ -150,6 +151,17 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
       return;
     }
 
+    // Nao permite colocar no carrinho mais unidades do que o estoque da variacao
+    const alreadyInCart = cartItems
+      .filter(i => i.productId === selectedProduct.id && i.variantId === selectedVariant.id)
+      .reduce((sum, i) => sum + i.quantity, 0);
+    if (alreadyInCart + itemQuantity > selectedVariant.stock) {
+      alert(
+        `Estoque insuficiente: ${selectedVariant.stock} un disponível(is), ${alreadyInCart} já no carrinho.`
+      );
+      return;
+    }
+
     const unitPrice = selectedProduct.promoPrice || selectedProduct.salePrice;
     const itemTotal = unitPrice * itemQuantity;
 
@@ -201,6 +213,12 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
           if (item.variantId === variantId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
+            if (delta > 0) {
+              const variant = products
+                .find(p => p.id === item.productId)
+                ?.variants.find(v => v.id === item.variantId);
+              if (variant && newQty > variant.stock) return item;
+            }
             return {
               ...item,
               quantity: newQty,
@@ -236,7 +254,7 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
     const n = Math.max(1, promissoryNumInstallments);
     const baseInstallmentValue = Number((totalAmount / n).toFixed(2));
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = toLocalDateStr(now);
 
     const generated: PromissoryInstallment[] = [];
     for (let i = 1; i <= n; i++) {
@@ -255,7 +273,7 @@ export const POSFrontDesk: React.FC<POSFrontDeskProps> = ({ onSaleSuccess }) => 
         installmentNumber: i,
         totalInstallments: n,
         issueDate: todayStr,
-        dueDate: dueDate.toISOString().split('T')[0],
+        dueDate: toLocalDateStr(dueDate),
         amount: val,
         status: 'pending',
       });

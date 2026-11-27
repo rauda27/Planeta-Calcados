@@ -65,7 +65,7 @@ export interface FiscalData {
 export interface Product {
   id: string;
   sku: string;
-  mainEan: string;
+  mainEan?: string;
   name: string;
   brand: string;
   model: string;

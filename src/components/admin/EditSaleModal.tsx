@@ -7,6 +7,14 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Save, UserCheck, DollarSign, Calendar, Edit3, Trash2, Plus, ShoppingBag, Search, PackageCheck } from 'lucide-react';
+import { toLocalDateStr } from '../../lib/dateUtils';
+
+// Vencimento padrao do crediario: 30 dias a partir de hoje
+const defaultDueDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return toLocalDateStr(d);
+};
 
 interface EditSaleModalProps {
   sale: Sale | null;
@@ -27,7 +35,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('money');
   const [status, setStatus] = useState<SaleStatus>('completed');
   const [discount, setDiscount] = useState<number>(0);
-  const [promissoryDueDate, setPromissoryDueDate] = useState<string>('2026-09-10');
+  const [promissoryDueDate, setPromissoryDueDate] = useState<string>(() => defaultDueDate());
 
   // Items editable list
   const [items, setItems] = useState<SaleItem[]>([]);
@@ -48,7 +56,7 @@ export const EditSaleModal: React.FC<EditSaleModalProps> = ({
       setPaymentMethod(sale.paymentMethod);
       setStatus(sale.status);
       setDiscount(sale.discount || 0);
-      setPromissoryDueDate(sale.paymentDetails?.promissory?.dueDate || '2026-09-10');
+      setPromissoryDueDate(sale.paymentDetails?.promissory?.dueDate || defaultDueDate());
       setItems(sale.items ? JSON.parse(JSON.stringify(sale.items)) : []);
       setIsAddingProduct(false);
       setSelectedProductToAdd(null);

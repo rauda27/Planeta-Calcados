@@ -7,6 +7,7 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Save } from 'lucide-react';
+import { toLocalDateStr } from '../../lib/dateUtils';
 
 interface BillFormModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ export const BillFormModal: React.FC<BillFormModalProps> = ({ isOpen, onClose })
       description: description.trim(),
       category,
       amount,
-      issueDate: issueDate || new Date().toISOString().split('T')[0],
+      issueDate: issueDate || toLocalDateStr(),
       dueDate,
       barcode: barcode.trim(),
       status,

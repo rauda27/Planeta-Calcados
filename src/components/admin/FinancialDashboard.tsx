@@ -5,6 +5,7 @@ import { useStore } from '../../context/StoreContext';
 import { Card } from '../ui/Card';
 import { AlertCircle, Calendar, DollarSign, CheckCircle2, AlertTriangle, Plus, FileText } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { toLocalDateStr, toLocalMonthStr, diffInDays } from '../../lib/dateUtils';
 
 interface FinancialDashboardProps {
   activeFilter: 'hoje' | 'proximos' | 'vencidos' | 'pagos' | 'todos';
@@ -18,7 +19,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   onOpenBillModal,
 }) => {
   const { bills } = useStore();
-  const todayStr = '2026-08-10'; // Current system date
+  const todayStr = toLocalDateStr();
+  const monthStr = toLocalMonthStr();
 
   // Calculations
   const billsDueToday = bills.filter(b => b.dueDate === todayStr && b.status !== 'Pago');
@@ -27,13 +29,15 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({
   // Next 7 days
   const billsNext7Days = bills.filter(b => {
     if (b.status === 'Pago') return false;
-    const diffDays = (new Date(b.dueDate).getTime() - new Date(todayStr).getTime()) / (1000 * 3600 * 24);
+    const diffDays = diffInDays(todayStr, b.dueDate);
     return diffDays > 0 && diffDays <= 7;
   });
   const totalNext7Days = billsNext7Days.reduce((sum, b) => sum + b.amount, 0);
 
   // Total Month
-  const totalMonth = bills.reduce((sum, b) => sum + b.amount, 0);
+  const totalMonth = bills
+    .filter(b => (b.dueDate || '').startsWith(monthStr))
+    .reduce((sum, b) => sum + b.amount, 0);
 
   // Overdue & Paid counts
   const overdueBills = bills.filter(b => b.status === 'Atrasado' || (b.status === 'Pendente' && b.dueDate < todayStr));
